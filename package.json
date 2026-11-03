@@ -1,0 +1,15 @@
+{
+  "name": "culury-companion",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Send recipes, links and notes from your browser to Culury",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "zip": "cd . && zip -r culury-companion.zip manifest.json src assets -x '*.test.js'"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1",
+    "vitest": "^3.2.4"
+  }
+}

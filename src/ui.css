@@ -1,0 +1,54 @@
+/* Shared by the popup and the options page: Culury's colors, light and dark */
+:root {
+  --page: #f5f7f6;
+  --card: #ffffff;
+  --ink: #1b2422;
+  --subtle: #5b6763;
+  --line: #dfe5e2;
+  --action: #13803d;
+  --action-pressed: #0f6a32;
+  --primary: #1b2422;
+  --ok: #13803d;
+  --problem: #b42318;
+  --ok-bg: #e7f5ec;
+  --problem-bg: #fdecea;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #141a18;
+    --card: #1d2522;
+    --ink: #e8eeeb;
+    --subtle: #9aa7a2;
+    --line: #2f3a36;
+    --action: #3fbf6c;
+    --action-pressed: #34a85d;
+    --primary: #e8eeeb;
+    --ok: #4fd17c;
+    --problem: #ff8a7a;
+    --ok-bg: #173323;
+    --problem-bg: #3a1c19;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.top { display: flex; align-items: center; gap: 8px; }
+.card { display: flex; flex-direction: column; gap: 10px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.muted { margin: 0; color: var(--subtle); font-size: 12px; }
+.label { font-size: 13px; font-weight: 600; color: var(--subtle); }
+input, textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--page); color: var(--ink); padding: 8px 10px; font: inherit; }
+input:focus, textarea:focus { outline: 2px solid color-mix(in srgb, var(--action) 35%, transparent); border-color: var(--action); }
+textarea { resize: vertical; }
+button { font: inherit; cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: 0.5; }
+.primary { border: 0; border-radius: 8px; background: var(--primary); color: var(--page); padding: 9px 14px; font-weight: 600; }
+.primary:not(:disabled):hover { opacity: 0.9; }
+.secondary { border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--ink); padding: 8px 14px; font-weight: 600; }
+.secondary:not(:disabled):hover { background: var(--page); }
+.link { border: 0; background: none; padding: 0; color: var(--action); font-weight: 600; }
+.link:hover { text-decoration: underline; }
+.result { margin: 0; min-height: 1.2em; font-weight: 600; }
+.result[data-state="ok"] { color: var(--ok); }
+.result[data-state="problem"] { color: var(--problem); }
+.result[data-state="busy"] { color: var(--subtle); }

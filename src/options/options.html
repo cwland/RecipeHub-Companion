@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Culury Companion settings</title>
+    <link rel="stylesheet" href="../ui.css" />
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main>
+      <header class="top">
+        <img src="../../assets/icons/icon-48.png" alt="" width="40" height="40" />
+        <div>
+          <h1>Culury Companion</h1>
+          <p class="muted">Send recipes, links and notes from your browser to Culury.</p>
+        </div>
+      </header>
+
+      <form class="card" novalidate>
+        <label class="label" for="address">Culury's address</label>
+        <input id="address" type="text" inputmode="url" autocomplete="url" placeholder="http://192.168.1.20:5173 or https://culury.example.com" required />
+        <p class="hint">The address you open Culury on. The browser asks once to let the extension reach it.</p>
+
+        <label class="label" for="key">API key</label>
+        <input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="cul_…" required />
+        <p class="hint">In Culury: <b>Settings › API keys</b>, name it “Culury Companion”, choose <b>Inbox only</b>, then <b>Create key</b> and paste it here. The key is kept in this browser only.</p>
+
+        <div class="actions">
+          <button class="primary" type="submit">Save and test</button>
+        </div>
+        <p id="result" class="result" role="status" aria-live="polite"></p>
+      </form>
+    </main>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Culury Companion</title>
+    <link rel="stylesheet" href="../ui.css" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="top">
+      <img src="../../assets/icons/icon-32.png" alt="" width="24" height="24" />
+      <strong>Culury Companion</strong>
+    </header>
+
+    <p id="status" class="status" data-state="checking" role="status">Checking Culury…</p>
+
+    <section class="card" aria-label="This page">
+      <div class="page">
+        <img id="page-icon" alt="" width="20" height="20" hidden />
+        <div class="page-text">
+          <p id="page-title" class="page-title">…</p>
+          <p class="muted"><span id="page-site"></span> <span id="page-kind"></span></p>
+        </div>
+      </div>
+      <button id="send" class="primary" type="button" disabled>Send to Inbox</button>
+    </section>
+
+    <section class="card" aria-label="Quick note">
+      <label for="note" class="label">Quick note</label>
+      <textarea id="note" rows="3" placeholder="A thought, a tip, a recipe to try… (highlight text on the page first to start with it)"></textarea>
+      <button id="send-note" class="secondary" type="button" disabled>Send note</button>
+    </section>
+
+    <p id="result" class="result" role="status" aria-live="polite"></p>
+
+    <footer class="links">
+      <button id="open-inbox" class="link" type="button">Open inbox</button>
+      <button id="settings" class="link" type="button">Settings</button>
+    </footer>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
