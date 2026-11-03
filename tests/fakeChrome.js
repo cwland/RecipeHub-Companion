@@ -3,8 +3,9 @@ import { handle } from "../src/background/handlers.js";
 
 // A pretend browser for the tests: storage, tabs, scripting, permissions and messages to the
 // service worker (which runs for real, with fetch replaced).
-export function fakeChrome({ tab = { id: 7, url: "https://www.example.com/pork-roast", title: "Pork Roast | Example", favIconUrl: "https://www.example.com/favicon.ico" }, page = {}, stored = {}, allow = true, fetch } = {}) {
+export function fakeChrome({ tab = { id: 7, url: "https://www.example.com/pork-roast", title: "Pork Roast | Example", favIconUrl: "https://www.example.com/favicon.ico" }, page = {}, stored = {}, allow = true, fetch, bubble = false } = {}) {
   const store = { ...stored };
+  const onPage = { bubble }; // the floating bubble on the tab
   const opened = [];
   const chrome = {
     storage: {
@@ -18,8 +19,11 @@ export function fakeChrome({ tab = { id: 7, url: "https://www.example.com/pork-r
       create: vi.fn(async ({ url }) => opened.push(url)),
     },
     scripting: {
-      executeScript: vi.fn(async () => {
+      executeScript: vi.fn(async ({ files, func }) => {
         if (page instanceof Error) throw page;
+        if (files) return (onPage.bubble = true), [{ result: undefined }];
+        if (func?.name === "bubbleHere") return [{ result: onPage.bubble }];
+        if (func?.name === "hideBubble") return (onPage.bubble = false), [{ result: undefined }];
         return [{ result: page }];
       }),
     },
@@ -34,7 +38,7 @@ export function fakeChrome({ tab = { id: 7, url: "https://www.example.com/pork-r
     },
   };
   globalThis.chrome = chrome;
-  return { chrome, store, opened };
+  return { chrome, store, opened, onPage };
 }
 
 export const answer = (status, json) => Promise.resolve(new Response(json === undefined ? null : JSON.stringify(json), { status, headers: { "content-type": "application/json" } }));

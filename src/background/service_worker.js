@@ -4,7 +4,7 @@ import { handle } from "./handlers.js";
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // only from this extension's own pages and scripts
   if (sender.id !== chrome.runtime.id) return false;
-  handle(msg).then(sendResponse, (e) => sendResponse({ ok: false, problem: e?.message ?? "Something went wrong" }));
+  handle(msg, { sender }).then(sendResponse, (e) => sendResponse({ ok: false, problem: e?.message ?? "Something went wrong" }));
   return true; // answering later
 });
 

@@ -19,6 +19,7 @@ Click the toolbar icon on any page:
 
 - **Send to Inbox** sends the page. When the page carries its recipe for search engines (most recipe sites do), the recipe goes along, so Culury can read it even if the site blocks Culury later. Instagram posts go as Instagram links. The same page sent again while it's waiting isn't added twice.
 - **Import to Culury** imports the page straight into your recipes (needs the Recipe push key). The page goes as you see it, so sites that block Culury still work; Instagram goes by its link. Tick **Run through AI correction** to have Culury's AI tidy the recipe up in the background once it's in (a new version: the import stays as version 1). It's remembered for next time, and can only be ticked when AI and Improve with AI are on in Culury's Settings › AI. **Open the recipe** links to it.
+- **Floating button on this page** puts a small round Culury button on the page, with **📬 Push to Inbox**, **⚡ Import now** and **✨ Import + AI clean-up** (the imports need the Recipe push key) and **Hide**. Drag it anywhere; it sticks to the nearest side. It's only on that page: leaving the page or closing the tab takes it away, and other tabs never get it.
 - **Quick note** sends a note with the page's link. Highlight text on the page first and the note starts with it.
 - **Open inbox** opens Culury's inbox; **Settings** changes the address or key.
 
@@ -27,7 +28,7 @@ In Culury, the inbox button (bottom of the left bar; in the Account menu on phon
 ## Privacy and access
 
 - The address and key are kept in this browser only (`chrome.storage.local`, not synced).
-- The extension reaches only the Culury address you saved (asked when you save). It reads the page you're on only when you open the popup (`activeTab`): the highlighted text and the page's recipe data.
+- The extension reaches only the Culury address you saved (asked when you save). It reads the page you're on only when you open the popup, or use its floating button (`activeTab`): the highlighted text, the page's recipe data, and for an import the page itself.
 - An **Inbox only** key can send to the inbox and nothing else: it can't read your recipes or the inbox, or change anything. A **Recipe push** key can only send recipes in and follow its imports.
 
 ## Develop
@@ -43,5 +44,6 @@ npm test
 - `src/lib/page.js`: runs in the page (highlighted text, recipe JSON-LD)
 - `src/background/`: the service worker, which does all the talking to Culury
 - `src/popup/`, `src/options/`: the popup and the settings page
+- `src/content/content_script.js`: the floating button, put on a page by the popup (only buttons: the service worker reads the page and talks to Culury, so no key reaches the page; its styles are in a shadow root, so the page can't change them and they can't change the page)
 
 Needs Culury with the inbox (`POST /api/inbox`, `GET /api/key-check`) and `improve` on `POST /api/recipes/import`.

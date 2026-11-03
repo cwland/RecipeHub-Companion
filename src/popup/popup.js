@@ -1,6 +1,15 @@
 import { ACCESS_LABELS, linkItem, noteItem } from "../lib/culury.js";
 import { readPage } from "../lib/page.js";
 import { loadSettings, saveImprove } from "../lib/settings.js";
+import { pageToImport } from "../background/handlers.js";
+
+// Run in the page (the extension's isolated world, where the bubble keeps its handle)
+function bubbleHere() {
+  return !!window.__culuryCompanion?.present();
+}
+function hideBubble() {
+  window.__culuryCompanion?.remove();
+}
 
 // The toolbar popup: is Culury connected, and send this page or a quick note to the inbox.
 // Everything that talks to Culury goes through the service worker (background/handlers.js).
@@ -66,8 +75,7 @@ export async function init() {
   $("import").addEventListener("click", async () => {
     $("import").disabled = true;
     say($("improve").checked ? "Importing… then AI tidies it up" : "Importing…", "busy");
-    const instagram = /(^|\.)instagram\.com$/i.test(new URL(tab.url).hostname); // Culury reads the post itself
-    const r = await ask({ type: "import", page: { url: tab.url, ...(page.html && !instagram ? { html: page.html } : {}) }, improve: $("improve").checked });
+    const r = await ask({ type: "import", page: pageToImport(tab, page), improve: $("improve").checked });
     say(r.ok ? r.message : r.problem, r.ok);
     if (r.recipeUrl) {
       $("open-recipe").href = r.recipeUrl;
@@ -75,6 +83,19 @@ export async function init() {
     }
     $("import").disabled = false;
   });
+
+  // The floating button on this page (web pages only)
+  if (web) {
+    const run = (opts) => chrome.scripting.executeScript({ target: { tabId: tab.id }, ...opts });
+    try {
+      const [here] = await run({ func: bubbleHere });
+      $("bubble").checked = !!here?.result;
+      $("bubble").disabled = false;
+      $("bubble").addEventListener("change", () => void ($("bubble").checked ? run({ files: ["src/content/content_script.js"] }) : run({ func: hideBubble })).catch(() => say("The button can't go on this page", false)));
+    } catch {
+      /* a page the extension can't touch (the Web Store, a PDF) */
+    }
+  }
 
   // Connected? (and can these keys send to the inbox, and import?)
   const c = await ask({ type: "check" });

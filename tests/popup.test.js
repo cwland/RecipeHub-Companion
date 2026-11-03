@@ -196,4 +196,32 @@ describe("the popup", () => {
       expect(JSON.parse(fetch.mock.calls.find(([u]) => u.endsWith("/api/recipes/import"))[1].body)).toEqual({ url: "https://www.instagram.com/reel/abc/", wait: 25 });
     });
   });
+
+  describe("the floating button switch", () => {
+    it("puts the bubble on this page, and takes it off", async () => {
+      const fetch = server({ "GET /api/key-check": () => answer(200, connected) });
+      const { chrome, onPage } = fakeChrome({ stored, fetch });
+      await init();
+      await until(() => expect($("#bubble").disabled).toBe(false));
+      expect($("#bubble").checked).toBe(false);
+      $("#bubble").click();
+      await until(() => expect(onPage.bubble).toBe(true));
+      expect(chrome.scripting.executeScript).toHaveBeenCalledWith({ target: { tabId: 7 }, files: ["src/content/content_script.js"] });
+      $("#bubble").click();
+      await until(() => expect(onPage.bubble).toBe(false));
+    });
+
+    it("on when the bubble is already on the page", async () => {
+      fakeChrome({ stored, fetch: server({ "GET /api/key-check": () => answer(200, connected) }), bubble: true });
+      await init();
+      await until(() => expect($("#bubble").checked).toBe(true));
+    });
+
+    it("not on browser pages", async () => {
+      fakeChrome({ stored, fetch: server({ "GET /api/key-check": () => answer(200, connected) }), tab: { id: 2, url: "chrome://newtab/", title: "New Tab" }, page: new Error("Cannot access a chrome:// URL") });
+      await init();
+      await until(() => expect($("#page-kind").textContent).toMatch(/isn't a web page/));
+      expect($("#bubble").disabled).toBe(true);
+    });
+  });
 });

@@ -14,3 +14,7 @@ body { width: 340px; padding: 12px; display: flex; flex-direction: column; gap: 
 .check:has(input:disabled) { color: var(--subtle); }
 #import-hint:empty { display: none; }
 #open-recipe { align-self: flex-start; margin-top: -4px; }
+.switch { flex-direction: row; align-items: flex-start; gap: 10px; cursor: pointer; }
+.switch input { margin-top: 3px; }
+.switch:has(input:disabled) { cursor: not-allowed; opacity: .6; }
+.switch b { display: block; font-size: 13px; }
