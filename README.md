@@ -1,6 +1,6 @@
 # Culury Companion
 
-A browser extension (Chrome, Brave, Edge and other Chromium browsers) that sends recipes, links and notes from the page you're on to your [Culury](https://github.com/cwland/Culury) inbox, to import when you're ready.
+A browser extension (Chrome, Brave, Edge and other Chromium browsers) that sends the recipe page you’re on to your [Culury](https://github.com/cwland/Culury) inbox, or imports it straight in.
 
 ## Install
 
