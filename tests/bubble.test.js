@@ -10,7 +10,7 @@ const host = () => document.getElementById("culury-companion-bubble");
 const root = () => host().shadowRoot;
 const item = (name) => [...root().querySelectorAll("[role=menuitem]")].find((b) => b.textContent.includes(name));
 
-function worker(state = { ok: true, canPush: true, canImport: true, aiCorrection: true }, results = {}) {
+function worker(state = { ok: true, canPush: true, canImport: true, improve: false }, results = {}) {
   const sendMessage = vi.fn(async (msg) => (msg.type === "bubble-state" ? state : (results[msg.action] ?? { ok: true, message: "Sent to your Culury inbox" })));
   globalThis.chrome = { runtime: { sendMessage } };
   return sendMessage;
@@ -38,57 +38,41 @@ describe("the floating bubble", () => {
     expect(window.__culuryCompanion.present()).toBe(true);
   });
 
-  it("its menu: Push to Inbox, Import now, Import + AI clean-up, Hide", async () => {
+  it("its menu: Send to Inbox, Import, Hide", async () => {
     worker();
     inject();
     click(root().querySelector("button[aria-label='Culury Companion']"));
     await until(() => expect(root().querySelector("[role=menu]").hidden).toBe(false));
-    await until(() => expect([...root().querySelectorAll("[role=menuitem]")].map((b) => b.textContent.trim())).toEqual(["📬 Push to Inbox", "⚡ Import now", "✨ Import + AI clean-up", "Hide"]));
+    await until(() => expect([...root().querySelectorAll("[role=menuitem]")].map((b) => b.textContent.trim())).toEqual(["📬 Send to Inbox", "⚡ Import", "Hide"]));
   });
 
-  it("Push to Inbox asks the worker, and says how it went", async () => {
+  it("Import says when it'll run through AI correction (as ticked in the popup)", async () => {
+    worker({ ok: true, canPush: true, canImport: true, improve: true });
+    inject();
+    click(root().querySelector("button[aria-label='Culury Companion']"));
+    await until(() => expect(item("Import").textContent.trim()).toBe("⚡ Import with AI correction"));
+  });
+
+  it("Send to Inbox and Import ask the worker (the banner at the top of the page says how it went) and close the menu", async () => {
     const send = worker();
     inject();
     click(root().querySelector("button[aria-label='Culury Companion']"));
-    await until(() => expect(item("Push to Inbox").disabled).toBe(false));
-    item("Push to Inbox").click();
-    await until(() => expect(root().querySelector("[role=status]").textContent).toBe("Sent to your Culury inbox"));
-    expect(send).toHaveBeenCalledWith({ type: "bubble", action: "push" });
+    await until(() => expect(item("Send to Inbox").disabled).toBe(false));
+    item("Send to Inbox").click();
+    expect(send).toHaveBeenCalledWith({ type: "act", action: "push" });
+    expect(root().querySelector("[role=menu]").hidden).toBe(true);
+    click(root().querySelector("button[aria-label='Culury Companion']"));
+    await until(() => expect(item("Import").disabled).toBe(false));
+    item("Import").click();
+    expect(send).toHaveBeenCalledWith({ type: "act", action: "import" });
   });
 
-  it("an import links to the recipe", async () => {
-    const send = worker(undefined, { "import-ai": { ok: true, message: "Imported “Pork Roast”. AI is tidying it up in the background.", recipeUrl: "http://192.168.86.222:5173/#/recipes/31" } });
+  it("no import key: only Send to Inbox", async () => {
+    worker({ ok: true, canPush: true, canImport: false, improve: false });
     inject();
     click(root().querySelector("button[aria-label='Culury Companion']"));
-    await until(() => expect(item("AI clean-up").disabled).toBe(false));
-    item("AI clean-up").click();
-    await until(() => expect(root().querySelector("[role=status]").textContent).toMatch(/Imported “Pork Roast”/));
-    expect(root().querySelector("[role=status] a").href).toBe("http://192.168.86.222:5173/#/recipes/31");
-    expect(send).toHaveBeenCalledWith({ type: "bubble", action: "import-ai" });
-  });
-
-  it("a problem shows as one", async () => {
-    worker(undefined, { push: { ok: false, problem: "Can't reach Culury at http://192.168.86.222:5173. Is it running, and is the address right?" } });
-    inject();
-    click(root().querySelector("button[aria-label='Culury Companion']"));
-    await until(() => expect(item("Push to Inbox").disabled).toBe(false));
-    item("Push to Inbox").click();
-    await until(() => expect(root().querySelector("[role=status]").dataset.state).toBe("problem"));
-  });
-
-  it("no import key: only Push; no AI in Culury: AI clean-up can't be picked, and says why", async () => {
-    worker({ ok: true, canPush: true, canImport: false, aiCorrection: false });
-    inject();
-    click(root().querySelector("button[aria-label='Culury Companion']"));
-    await until(() => expect(item("Push to Inbox").disabled).toBe(false));
-    expect(item("Import now")).toBeUndefined();
-    window.__culuryCompanion.remove();
-    worker({ ok: true, canPush: true, canImport: true, aiCorrection: false });
-    inject();
-    click(root().querySelector("button[aria-label='Culury Companion']"));
-    await until(() => expect(item("Import now").disabled).toBe(false));
-    expect(item("AI clean-up").disabled).toBe(true);
-    expect(item("AI clean-up").title).toMatch(/needs AI in Culury/);
+    await until(() => expect(item("Send to Inbox").disabled).toBe(false));
+    expect(item("Import")).toBeUndefined();
   });
 
   it("not set up: the menu says so", async () => {

@@ -5,7 +5,7 @@ import { handle } from "../src/background/handlers.js";
 // service worker (which runs for real, with fetch replaced).
 export function fakeChrome({ tab = { id: 7, url: "https://www.example.com/pork-roast", title: "Pork Roast | Example", favIconUrl: "https://www.example.com/favicon.ico" }, page = {}, stored = {}, allow = true, fetch, bubble = false } = {}) {
   const store = { ...stored };
-  const onPage = { bubble }; // the floating bubble on the tab
+  const onPage = { bubble, banners: [] }; // the floating bubble on the tab, and the banners shown at its top
   const opened = [];
   const chrome = {
     storage: {
@@ -19,11 +19,14 @@ export function fakeChrome({ tab = { id: 7, url: "https://www.example.com/pork-r
       create: vi.fn(async ({ url }) => opened.push(url)),
     },
     scripting: {
-      executeScript: vi.fn(async ({ files, func }) => {
+      executeScript: vi.fn(async ({ files, func, args }) => {
+        // like Chrome: what's passed into the page must be JSON (undefined isn't)
+        if (args?.some((a) => a === undefined)) throw new Error("Error in invocation of scripting.executeScript: Value is unserializable.");
         if (page instanceof Error) throw page;
         if (files) return (onPage.bubble = true), [{ result: undefined }];
         if (func?.name === "bubbleHere") return [{ result: onPage.bubble }];
         if (func?.name === "hideBubble") return (onPage.bubble = false), [{ result: undefined }];
+        if (func?.name === "showBanner") return onPage.banners.push(args), [{ result: undefined }];
         return [{ result: page }];
       }),
     },
@@ -32,7 +35,7 @@ export function fakeChrome({ tab = { id: 7, url: "https://www.example.com/pork-r
       contains: vi.fn(async () => allow),
     },
     runtime: {
-      sendMessage: vi.fn((msg) => handle(msg, { chrome, fetch })),
+      sendMessage: vi.fn((msg) => handle(msg, { chrome, fetch, sender: { id: "ext" } })),
       openOptionsPage: vi.fn(),
       onMessage: { addListener: vi.fn() },
     },

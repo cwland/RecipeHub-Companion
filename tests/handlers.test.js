@@ -16,15 +16,21 @@ const culury = (more = {}) =>
     return r ? r(JSON.parse(init.body ?? "null")) : answer(404, { error: "no fake" });
   });
 
-describe("what the bubble can do", () => {
-  it("both keys: push, import, and AI correction", async () => {
-    const { chrome } = fakeChrome({ stored });
-    expect(await handle({ type: "bubble-state" }, { chrome, fetch: culury(), sender })).toEqual({ ok: true, canPush: true, canImport: true, aiCorrection: true });
+describe("what the floating button can do", () => {
+  it("both keys: send, and import (with AI correction when it's ticked and Culury can)", async () => {
+    const { chrome } = fakeChrome({ stored: { ...stored, improve: true } });
+    expect(await handle({ type: "bubble-state" }, { chrome, fetch: culury(), sender })).toEqual({ ok: true, canPush: true, canImport: true, improve: true });
   });
 
-  it("only the inbox key: push only", async () => {
+  it("AI correction ticked, but Culury can't: a plain import", async () => {
+    const fetch = vi.fn(async (url, init) => answer(200, { ...keyCheck(init.headers["x-api-key"]), aiCorrection: false }));
+    const { chrome } = fakeChrome({ stored: { ...stored, improve: true } });
+    expect(await handle({ type: "bubble-state" }, { chrome, fetch, sender })).toMatchObject({ canImport: true, improve: false });
+  });
+
+  it("only the inbox key: send only", async () => {
     const { chrome } = fakeChrome({ stored: { ...stored, importKey: "" } });
-    expect(await handle({ type: "bubble-state" }, { chrome, fetch: culury(), sender })).toEqual({ ok: true, canPush: true, canImport: false, aiCorrection: false });
+    expect(await handle({ type: "bubble-state" }, { chrome, fetch: culury(), sender })).toEqual({ ok: true, canPush: true, canImport: false, improve: false });
   });
 
   it("not set up: says so", async () => {
@@ -33,33 +39,60 @@ describe("what the bubble can do", () => {
   });
 });
 
-describe("the bubble's actions", () => {
-  it("Push to Inbox: reads the tab it's on and sends it (with its recipe)", async () => {
+// From the popup (it names the tab) or the floating button (the tab it's on): the worker reads the
+// page, does it, and says how it went in a banner at the top of the page
+describe("Send to Inbox and Import, on a page", () => {
+  it("Send to Inbox: reads the tab and sends it (with its recipe); the banner says so", async () => {
     const fetch = culury({ "POST /api/inbox": () => answer(201, { id: 3 }) });
-    const { chrome } = fakeChrome({ stored, page: { recipe: '{"@type":"Recipe","name":"Pork Roast"}' } });
-    expect(await handle({ type: "bubble", action: "push" }, { chrome, fetch, sender })).toEqual({ ok: true, message: "Sent to your Culury inbox", id: 3 });
+    const { chrome, onPage } = fakeChrome({ stored, page: { recipe: '{"@type":"Recipe","name":"Pork Roast"}' } });
+    expect(await handle({ type: "act", action: "push" }, { chrome, fetch, sender })).toEqual({ ok: true, message: "Sent to your Culury inbox", id: 3 });
     expect(chrome.scripting.executeScript).toHaveBeenCalledWith({ target: { tabId: 7 }, func: readPage });
     expect(JSON.parse(fetch.mock.calls.at(-1)[1].body)).toMatchObject({ type: "RAW_RECIPE_DATA", url: tab.url, title: tab.title });
+    expect(onPage.banners).toEqual([["Sending to Culury…", "busy", null], ["Sent to your Culury inbox", "ok", null]]);
   });
 
-  it("Import now, and Import + AI clean-up", async () => {
-    const fetch = culury({ "POST /api/recipes/import": (b) => answer(200, { id: 12, status: "done", result: { recipeId: 31, title: "Pork Roast", ...(b.improve ? { improving: 13 } : {}) } }) });
-    const { chrome } = fakeChrome({ stored, page: { html: "<html>pork</html>" } });
-    expect(await handle({ type: "bubble", action: "import" }, { chrome, fetch, sender })).toMatchObject({ ok: true, message: "Imported “Pork Roast”", recipeUrl: "http://192.168.86.222:5173/#/recipes/31" });
-    expect(JSON.parse(fetch.mock.calls.at(-1)[1].body)).toEqual({ url: tab.url, html: "<html>pork</html>", wait: 25 });
-    expect(await handle({ type: "bubble", action: "import-ai" }, { chrome, fetch, sender })).toMatchObject({ ok: true, message: expect.stringMatching(/AI is tidying it up/) });
-    expect(JSON.parse(fetch.mock.calls.at(-1)[1].body)).toMatchObject({ improve: true });
+  it("Import goes straight into Culury, leaving a note in the inbox's Imported list", async () => {
+    const fetch = culury({ "POST /api/recipes/import": () => answer(200, { id: 12, status: "done", result: { recipeId: 31, title: "Pork Roast" } }) });
+    const { chrome, onPage } = fakeChrome({ stored, page: { html: "<html>pork</html>" } });
+    expect(await handle({ type: "act", action: "import" }, { chrome, fetch, sender })).toMatchObject({ ok: true, recipeUrl: "http://192.168.86.222:5173/#/recipes/31" });
+    expect(JSON.parse(fetch.mock.calls.at(-1)[1].body)).toEqual({ url: tab.url, html: "<html>pork</html>", inbox: true, wait: 25 });
+    expect(onPage.banners.at(-1)).toEqual(["Imported “Pork Roast” into Culury", "ok", "http://192.168.86.222:5173/#/recipes/31"]);
+  });
+
+  it("with Run through AI correction ticked (and Culury able to), it asks for it", async () => {
+    const fetch = culury({ "POST /api/recipes/import": () => answer(200, { id: 12, status: "done", result: { recipeId: 31, title: "Pork Roast", improving: 13 } }) });
+    const { chrome, onPage } = fakeChrome({ stored: { ...stored, improve: true } });
+    await handle({ type: "act", action: "import" }, { chrome, fetch, sender });
+    expect(JSON.parse(fetch.mock.calls.at(-1)[1].body)).toMatchObject({ improve: true, inbox: true });
+    expect(onPage.banners[0]).toEqual(["Importing into Culury… then AI tidies it up", "busy", null]);
+    expect(onPage.banners.at(-1)[0]).toMatch(/AI is tidying it up/);
+  });
+
+  it("from the popup: the tab it names", async () => {
+    const fetch = culury({ "POST /api/inbox": () => answer(201, { id: 3 }) });
+    const { chrome } = fakeChrome({ stored });
+    // (the popup's own page is never the one acted on, even if the popup happens to be in a tab)
+    await handle({ type: "act", action: "push", tab: { ...tab, id: 9, url: "https://example.org/stew", title: "Stew" } }, { chrome, fetch, sender: { id: "ext", tab: { id: 40, url: "chrome-extension://ext/src/popup/popup.html" } } });
+    expect(chrome.scripting.executeScript).toHaveBeenCalledWith({ target: { tabId: 9 }, func: readPage });
+    expect(JSON.parse(fetch.mock.calls.at(-1)[1].body)).toMatchObject({ url: "https://example.org/stew" });
+  });
+
+  it("a problem shows in the banner too", async () => {
+    const { chrome, onPage } = fakeChrome({ stored });
+    const r = await handle({ type: "act", action: "push" }, { chrome, fetch: () => Promise.reject(new TypeError("Failed to fetch")), sender });
+    expect(r.ok).toBe(false);
+    expect(onPage.banners.at(-1)).toEqual([r.problem, "problem", null]);
   });
 
   it("the page can't be read any more (it moved on): the link still goes", async () => {
     const fetch = culury({ "POST /api/inbox": () => answer(201, { id: 4 }) });
     const { chrome } = fakeChrome({ stored, page: new Error("Cannot access contents of the page") });
-    expect(await handle({ type: "bubble", action: "push" }, { chrome, fetch, sender })).toMatchObject({ ok: true });
+    expect(await handle({ type: "act", action: "push" }, { chrome, fetch, sender })).toMatchObject({ ok: true });
     expect(JSON.parse(fetch.mock.calls.at(-1)[1].body)).toMatchObject({ type: "RECIPE_LINK", url: tab.url });
   });
 
-  it("only from a page in a tab", async () => {
+  it("no tab: nothing to do", async () => {
     const { chrome } = fakeChrome({ stored });
-    expect(await handle({ type: "bubble", action: "push" }, { chrome, fetch: vi.fn(), sender: { id: "ext" } })).toEqual({ ok: false, problem: "Unknown request" });
+    expect(await handle({ type: "act", action: "push" }, { chrome, fetch: vi.fn(), sender: { id: "ext" } })).toEqual({ ok: false, problem: "Unknown request" });
   });
 });

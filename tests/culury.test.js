@@ -98,7 +98,7 @@ describe("importing straight into Culury (the Recipe push key)", () => {
 
   it("sends the page with the import key, and says what came in, with its link", async () => {
     const fetch = vi.fn(() => answer(200, done({ recipeId: 31, title: "Pork Roast" })));
-    expect(await importPage(both, page, false, fetch, noWait)).toEqual({ ok: true, message: "Imported “Pork Roast”", recipeUrl: "http://192.168.86.222:5173/#/recipes/31" });
+    expect(await importPage(both, page, false, fetch, noWait)).toEqual({ ok: true, message: "Imported “Pork Roast” into Culury", recipeUrl: "http://192.168.86.222:5173/#/recipes/31" });
     const [url, init] = fetch.mock.calls[0];
     expect(url).toBe("http://192.168.86.222:5173/api/recipes/import");
     expect(init.headers["x-api-key"]).toBe("cul_import9");
@@ -107,7 +107,7 @@ describe("importing straight into Culury (the Recipe push key)", () => {
 
   it("with AI correction: asks for it, and says it's being tidied up", async () => {
     const fetch = vi.fn(() => answer(200, done({ recipeId: 31, title: "Pork Roast", improving: 13 })));
-    expect(await importPage(both, page, true, fetch, noWait)).toMatchObject({ ok: true, message: "Imported “Pork Roast”. AI is tidying it up in the background." });
+    expect(await importPage(both, page, true, fetch, noWait)).toMatchObject({ ok: true, message: "Imported “Pork Roast” into Culury. AI is tidying it up in the background." });
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toMatchObject({ improve: true });
   });
 

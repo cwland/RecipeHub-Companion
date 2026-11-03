@@ -1,5 +1,6 @@
 import { checkConnection, importPage, linkItem, normalizeAddress, push } from "../lib/culury.js";
 import { readPage } from "../lib/page.js";
+import { showBanner } from "../lib/banner.js";
 import { loadSettings } from "../lib/settings.js";
 
 // What the popup (and later the on-page bubble) asks the service worker to do. The worker does the
@@ -9,9 +10,9 @@ import { loadSettings } from "../lib/settings.js";
 //   { type: "push", item }        send to the inbox
 //   { type: "import", page, improve }  import the page straight in (the Recipe push key)
 //   { type: "open-inbox" }        open Culury's inbox in a new tab
-// From the floating bubble on a page (sender.tab is that page's tab):
-//   { type: "bubble-state" }      which of its actions work (keys set up, AI correction available)
-//   { type: "bubble", action }    "push", "import" or "import-ai": the worker reads the page itself
+//   { type: "act", action, tab? } "push" or "import" for a page: the floating button's tab
+//                                 (sender.tab), or the one the popup names; a banner on the page says how it went
+//   { type: "bubble-state" }      what the floating button can do (keys set up; import with AI correction?)
 export async function handle(msg, { chrome = globalThis.chrome, fetch = globalThis.fetch, sender } = {}) {
   const settings = msg.settings ?? (await loadSettings(chrome));
   switch (msg?.type) {
@@ -36,17 +37,31 @@ export async function handle(msg, { chrome = globalThis.chrome, fetch = globalTh
       const [inbox, imp] = await Promise.all([checkConnection(settings, fetch), settings.importKey ? checkConnection({ ...settings, key: settings.importKey }, fetch) : null]);
       if (!inbox.ok) return { ok: false, problem: inbox.problem };
       const canImport = !!(imp?.ok && imp.canImport);
-      return { ok: true, canPush: !!inbox.canPushToInbox, canImport, aiCorrection: canImport && !!imp.aiCorrection };
+      return { ok: true, canPush: !!inbox.canPushToInbox, canImport, improve: canImport && !!settings.improve && !!imp.aiCorrection };
     }
-    case "bubble": {
-      const tab = sender?.tab;
-      if (!tab?.id || !["push", "import", "import-ai"].includes(msg.action)) break;
-      const page = await readTab(chrome, tab.id);
-      if (msg.action === "push") return push(settings, linkItem(tab, page), fetch);
-      return importPage(settings, pageToImport(tab, page), msg.action === "import-ai", fetch);
+    case "act": {
+      // the popup names its tab (it closes straight away); the floating button: the tab it is on
+      const tab = msg.tab ?? sender?.tab;
+      if (!tab?.id || !["push", "import"].includes(msg.action)) break;
+      return act(chrome, fetch, settings, tab, msg.action);
     }
   }
   return { ok: false, problem: "Unknown request" };
+}
+
+// Send to Inbox or Import, for a page: the worker reads it, does it, and says how it went in a
+// banner at the top of the page. Import goes straight into Culury (and leaves a note in the inbox's
+// Imported list), with AI correction when it's ticked and Culury can do it.
+async function act(chrome, fetch, settings, tab, action) {
+  // (what goes into the page must be JSON: null, never undefined)
+  const banner = (text, state, link) => chrome.scripting.executeScript({ target: { tabId: tab.id }, func: showBanner, args: [text, state, link ?? null] }).catch(() => {});
+  let improve = false;
+  if (action === "import" && settings.improve && settings.importKey) improve = !!(await checkConnection({ ...settings, key: settings.importKey }, fetch)).aiCorrection;
+  await banner(action === "push" ? "Sending to Culury…" : improve ? "Importing into Culury… then AI tidies it up" : "Importing into Culury…", "busy");
+  const page = await readTab(chrome, tab.id);
+  const r = action === "push" ? await push(settings, linkItem(tab, page), fetch) : await importPage(settings, pageToImport(tab, page), improve, fetch, { inbox: true });
+  await banner(r.ok ? r.message : r.problem, r.ok ? "ok" : "problem", r.recipeUrl);
+  return r;
 }
 
 // The highlighted text, recipe data and HTML of a tab (the bubble's page). It can fail when the

@@ -1,7 +1,6 @@
-import { ACCESS_LABELS, linkItem, noteItem } from "../lib/culury.js";
+import { ACCESS_LABELS } from "../lib/culury.js";
 import { readPage } from "../lib/page.js";
 import { loadSettings, saveImprove } from "../lib/settings.js";
-import { pageToImport } from "../background/handlers.js";
 
 // Run in the page (the extension's isolated world, where the bubble keeps its handle)
 function bubbleHere() {
@@ -11,8 +10,9 @@ function hideBubble() {
   window.__culuryCompanion?.remove();
 }
 
-// The toolbar popup: is Culury connected, and send this page or a quick note to the inbox.
-// Everything that talks to Culury goes through the service worker (background/handlers.js).
+// The toolbar popup: is Culury connected; Send to Inbox or Import this page. Those go to the service
+// worker (background/handlers.js), which does them and shows how it went in a banner at the top of
+// the page, so the popup closes straight away.
 
 const $ = (id) => document.getElementById(id);
 const ask = (msg) => chrome.runtime.sendMessage(msg);
@@ -20,7 +20,6 @@ const isWeb = (url) => /^https?:\/\//i.test(url ?? "");
 
 // state: "ok", "problem" or "busy" (on its way: not shown as done)
 function say(text, state = "ok") {
-  $("open-recipe").hidden = true;
   const el = $("result");
   el.textContent = text;
   el.dataset.state = state === true ? "ok" : state === false ? "problem" : state;
@@ -30,7 +29,7 @@ export async function init() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const web = isWeb(tab?.url);
 
-  // What's on the page: highlighted text and the recipe it carries (web pages only)
+  // Does the page carry its recipe? (web pages only)
   let page = {};
   if (web) {
     try {
@@ -43,46 +42,27 @@ export async function init() {
 
   $("page-title").textContent = tab?.title || tab?.url || "This tab";
   $("page-site").textContent = web ? new URL(tab.url).hostname.replace(/^www\./, "") : "";
-  $("page-kind").textContent = !web ? "This isn't a web page: you can still send a note" : page.recipe ? "Recipe found on this page" : "";
+  $("page-kind").textContent = !web ? "This isn't a web page: nothing to send from here" : page.recipe ? "Recipe found on this page" : "";
   if (web && /^https?:\/\//.test(tab.favIconUrl ?? "")) {
     $("page-icon").src = tab.favIconUrl;
     $("page-icon").hidden = false;
   }
-  if (page.selection) $("note").value = page.selection;
 
   $("settings").addEventListener("click", () => chrome.runtime.openOptionsPage());
   $("open-inbox").addEventListener("click", () => void ask({ type: "open-inbox" })); // the popup closes as the tab opens
 
-  const send = async (button, item, after) => {
-    button.disabled = true;
-    say("Sending…", "busy");
-    const r = await ask({ type: "push", item });
-    say(r.ok ? r.message : r.problem, r.ok);
-    if (r.ok) after?.();
-    button.disabled = false;
+  // Send or import: the worker does it (and shows how it went on the page); the popup closes
+  const act = (action) => {
+    void ask({ type: "act", action, tab: { id: tab.id, url: tab.url, title: tab.title, favIconUrl: tab.favIconUrl } });
+    window.close();
   };
-  $("send").addEventListener("click", () => send($("send"), linkItem(tab, page)));
-  $("send-note").addEventListener("click", () => {
-    const text = $("note").value.trim();
-    if (!text) return say("Write a note first", false);
-    void send($("send-note"), noteItem(text, tab), () => ($("note").value = ""));
-  });
+  $("send").addEventListener("click", () => act("push"));
+  $("import").addEventListener("click", () => act("import"));
 
-  // Import to Culury (the Recipe push key), with or without AI correction
+  // Run through AI correction: remembered (the worker reads it when importing)
   const saved = await loadSettings();
   $("improve").checked = !!saved.improve;
   $("improve").addEventListener("change", () => void saveImprove($("improve").checked));
-  $("import").addEventListener("click", async () => {
-    $("import").disabled = true;
-    say($("improve").checked ? "Importing… then AI tidies it up" : "Importing…", "busy");
-    const r = await ask({ type: "import", page: pageToImport(tab, page), improve: $("improve").checked });
-    say(r.ok ? r.message : r.problem, r.ok);
-    if (r.recipeUrl) {
-      $("open-recipe").href = r.recipeUrl;
-      $("open-recipe").hidden = false;
-    }
-    $("import").disabled = false;
-  });
 
   // The floating button on this page (web pages only)
   if (web) {
@@ -114,7 +94,6 @@ export async function init() {
   status.textContent = `Connected · ${c.name} (${ACCESS_LABELS[c.access] ?? c.access})`;
   status.dataset.state = "ok";
   $("send").disabled = !web;
-  $("send-note").disabled = false;
 }
 
 // The import part of the popup: ready, or what it needs

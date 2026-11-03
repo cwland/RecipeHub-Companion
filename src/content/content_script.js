@@ -1,7 +1,8 @@
 // The floating bubble: put on a page by the popup's "Floating button on this page" switch, and only
 // on that page (it's gone when you leave the page or close the tab). A plain script, run in the
 // extension's own isolated world. It's only the buttons: the service worker reads the page and
-// talks to Culury (background/handlers.js), so no key ever reaches the page.
+// talks to Culury (background/handlers.js), so no key ever reaches the page, and shows how it
+// went in a banner at the top of the page (lib/banner.js).
 (() => {
   if (window.__culuryCompanion?.present()) return window.__culuryCompanion.show();
 
@@ -17,20 +18,15 @@
     .bubble { width: ${SIZE}px; height: ${SIZE}px; border-radius: 50%; border: 0; padding: 0; cursor: grab; display: grid; place-items: center; background: #13803d; color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.25); touch-action: none; }
     .bubble:active { cursor: grabbing; }
     .bubble:focus-visible { outline: 3px solid #7fd6a0; outline-offset: 2px; }
-    .menu, .toast { position: absolute; width: 240px; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+    .menu { position: absolute; width: 240px; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
     .menu { padding: 6px; display: flex; flex-direction: column; }
-    .menu[hidden], .toast[hidden] { display: none; }
+    .menu[hidden] { display: none; }
     .menu .title { padding: 6px 10px 4px; font-size: 12px; font-weight: 700; color: var(--subtle); }
     .menu .note { padding: 6px 10px; font-size: 13px; color: var(--problem); }
     .menu button { all: unset; display: block; padding: 8px 10px; border-radius: 8px; cursor: pointer; color: var(--ink); }
     .menu button:hover:not(:disabled), .menu button:focus-visible { background: var(--hover); }
     .menu button:disabled { opacity: .45; cursor: not-allowed; }
     .menu .hide { color: var(--subtle); font-size: 13px; border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; margin-top: 4px; }
-    .toast { padding: 10px 12px; font-weight: 600; }
-    .toast[data-state="ok"] { color: var(--ok); }
-    .toast[data-state="problem"] { color: var(--problem); }
-    .toast[data-state="busy"] { color: var(--subtle); }
-    .toast a { display: block; margin-top: 4px; color: var(--action); font-weight: 600; }
   `;
   // The extension's mark: a leaf dropping into a tray
   const ICON = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.5c2.6 1.6 3.4 5.2 1.5 7.9-1 1.4-2.6 2.1-3.9 2.3-.5-1.6-.4-3.4.5-5A7 7 0 0 1 12 2.5Z" fill="#fff"/><path d="M11 12.4c.4-2 1.2-3.6 2.3-5" stroke="#13803d" stroke-width="1"/><path d="M4 14h4.2a3.8 3.8 0 0 0 7.6 0H20v4.2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V14Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
@@ -53,16 +49,13 @@
     <div class="wrap">
       <button class="bubble" type="button" aria-label="Culury Companion" title="Culury Companion (drag to move)" aria-haspopup="menu" aria-expanded="false">${ICON}</button>
       <div class="menu" role="menu" aria-label="Culury Companion" hidden></div>
-      <div class="toast" role="status" aria-live="polite" hidden></div>
     </div>`;
   const button = root.querySelector(".bubble");
   const menu = root.querySelector(".menu");
-  const toast = root.querySelector(".toast");
   document.documentElement.append(host);
 
   const ask = (msg) => chrome.runtime.sendMessage(msg);
   let state = null;
-  let toastTimer = 0;
 
   // Menus and messages open beside the bubble, on the side with room
   const place = (el) => {
@@ -72,23 +65,6 @@
     el.style.top = top > innerHeight - 220 ? "auto" : "0px";
     el.style.bottom = top > innerHeight - 220 ? "0px" : "auto";
   };
-
-  function say(text, ok, link) {
-    clearTimeout(toastTimer);
-    toast.textContent = text;
-    toast.dataset.state = ok === "busy" ? "busy" : ok ? "ok" : "problem";
-    if (link) {
-      const a = document.createElement("a");
-      a.href = link;
-      a.target = "_blank";
-      a.rel = "noopener";
-      a.textContent = "Open the recipe";
-      toast.append(a);
-    }
-    place(toast);
-    toast.hidden = false;
-    if (ok === true) toastTimer = setTimeout(() => (toast.hidden = true), link ? 10000 : 5000);
-  }
 
   function closeMenu() {
     menu.hidden = true;
@@ -116,11 +92,8 @@
         if (why) b.title = why;
         b.addEventListener("click", () => run(act));
       };
-      if (state.canPush) action("📬 Push to Inbox", "push");
-      if (state.canImport) {
-        action("⚡ Import now", "import");
-        action("✨ Import + AI clean-up", "import-ai", state.aiCorrection, state.aiCorrection ? "" : "AI clean-up needs AI in Culury (Settings › AI, with Improve with AI on)");
-      }
+      if (state.canPush) action("📬 Send to Inbox", "push");
+      if (state.canImport) action(state.improve ? "⚡ Import with AI correction" : "⚡ Import", "import");
       if (!state.canPush && !state.canImport) add("div", "note", "These keys can't send anything: check them in the extension's settings.");
     }
     const hide = add("button", "hide", "Hide");
@@ -135,17 +108,21 @@
     menu.hidden = false;
     button.setAttribute("aria-expanded", "true");
     if (!state) {
-      state = await ask({ type: "bubble-state" }).catch(() => ({ ok: false, problem: "The extension was updated: reload the page to use the bubble again." }));
+      state = await ask({ type: "bubble-state" }).catch(() => ({ ok: false, problem: "Culury Companion was updated: switch the floating button on again from the toolbar." }));
       if (!menu.hidden) fillMenu();
     }
     menu.querySelector("button:not(:disabled)")?.focus();
   }
 
-  async function run(action) {
+  // The worker does it, and a banner at the top of the page says how it went
+  function run(action) {
     closeMenu();
-    say(action === "push" ? "Sending…" : action === "import-ai" ? "Importing… then AI tidies it up" : "Importing…", "busy");
-    const r = await ask({ type: "bubble", action }).catch(() => ({ ok: false, problem: "The extension was updated: reload the page to use the bubble again." }));
-    say(r.ok ? r.message : r.problem, !!r.ok, r.recipeUrl);
+    ask({ type: "act", action }).catch(() => alertGone());
+  }
+  // The extension was updated or reloaded since the button was put here: it can't reach it any more
+  function alertGone() {
+    remove();
+    console.info("Culury Companion was updated: switch the floating button on again from the toolbar.");
   }
 
   function remove() {
@@ -169,7 +146,6 @@
     if (!drag.moved && Math.hypot(dx, dy) < 5) return;
     drag.moved = true;
     closeMenu();
-    toast.hidden = true;
     host.style.left = `${Math.min(Math.max(drag.left + dx, 0), innerWidth - SIZE)}px`;
     host.style.top = `${Math.min(Math.max(drag.top + dy, 0), innerHeight - SIZE)}px`;
   };
