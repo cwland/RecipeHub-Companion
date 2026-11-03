@@ -4,10 +4,10 @@ A browser extension (Chrome, Brave, Edge and other Chromium browsers) that sends
 
 ## Install
 
-1. In Culury: **Settings › API keys** → name it `Culury Companion`, choose **Inbox only**, **Create key**, and copy the key (it's shown once).
+1. In Culury: **Settings › API keys** → name it `Culury Companion`, choose **Inbox only**, **Create key**, and copy the key (it's shown once). For **Import to Culury**, make a second key, `Culury Companion import`, with **Recipe push** access.
 2. Get this folder onto your computer (`git clone https://github.com/cwland/Culury-Companion.git`).
 3. Open `brave://extensions` (or `chrome://extensions`), turn on **Developer mode**, click **Load unpacked**, and pick the `Culury-Companion` folder.
-4. The settings open by themselves: enter the address you open Culury on (like `http://192.168.1.20:5173` or `https://culury.example.com`) and paste the key, then **Save and test**. The browser asks once to let the extension reach that address.
+4. The settings open by themselves: enter the address you open Culury on (like `http://192.168.1.20:5173` or `https://culury.example.com`), paste the Inbox only key (and the Recipe push key, if you made one), then **Save and test**. Both keys are tested before anything is saved. The browser asks once to let the extension reach that address.
 
 Pin it from the puzzle-piece menu so the icon stays in the toolbar.
 
@@ -18,6 +18,7 @@ To update: `git pull` in the folder, then the reload arrow on the extension's ca
 Click the toolbar icon on any page:
 
 - **Send to Inbox** sends the page. When the page carries its recipe for search engines (most recipe sites do), the recipe goes along, so Culury can read it even if the site blocks Culury later. Instagram posts go as Instagram links. The same page sent again while it's waiting isn't added twice.
+- **Import to Culury** imports the page straight into your recipes (needs the Recipe push key). The page goes as you see it, so sites that block Culury still work; Instagram goes by its link. Tick **Run through AI correction** to have Culury's AI tidy the recipe up in the background once it's in (a new version: the import stays as version 1). It's remembered for next time, and can only be ticked when AI and Improve with AI are on in Culury's Settings › AI. **Open the recipe** links to it.
 - **Quick note** sends a note with the page's link. Highlight text on the page first and the note starts with it.
 - **Open inbox** opens Culury's inbox; **Settings** changes the address or key.
 
@@ -27,7 +28,7 @@ In Culury, the inbox button (bottom of the left bar; in the Account menu on phon
 
 - The address and key are kept in this browser only (`chrome.storage.local`, not synced).
 - The extension reaches only the Culury address you saved (asked when you save). It reads the page you're on only when you open the popup (`activeTab`): the highlighted text and the page's recipe data.
-- An **Inbox only** key can send to the inbox and nothing else: it can't read your recipes or the inbox, or change anything.
+- An **Inbox only** key can send to the inbox and nothing else: it can't read your recipes or the inbox, or change anything. A **Recipe push** key can only send recipes in and follow its imports.
 
 ## Develop
 
@@ -43,4 +44,4 @@ npm test
 - `src/background/`: the service worker, which does all the talking to Culury
 - `src/popup/`, `src/options/`: the popup and the settings page
 
-Needs Culury with the inbox (`POST /api/inbox`, `GET /api/key-check`).
+Needs Culury with the inbox (`POST /api/inbox`, `GET /api/key-check`) and `improve` on `POST /api/recipes/import`.

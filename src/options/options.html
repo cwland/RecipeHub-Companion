@@ -26,6 +26,10 @@
         <input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="cul_…" required />
         <p class="hint">In Culury: <b>Settings › API keys</b>, name it “Culury Companion”, choose <b>Inbox only</b>, then <b>Create key</b> and paste it here. The key is kept in this browser only.</p>
 
+        <label class="label" for="import-key">API key for Direct Import <span class="optional">(optional)</span></label>
+        <input id="import-key" type="password" autocomplete="off" spellcheck="false" placeholder="cul_…" />
+        <p class="hint">For <b>Import to Culury</b> (straight into your recipes, with or without AI correction). Make a second key with <b>Recipe push</b> access, name it “Culury Companion import”. Leave it empty to only send to the inbox.</p>
+
         <div class="actions">
           <button class="primary" type="submit">Save and test</button>
         </div>

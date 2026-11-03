@@ -23,6 +23,11 @@
         </div>
       </div>
       <button id="send" class="primary" type="button" disabled>Send to Inbox</button>
+      <div class="import">
+        <button id="import" class="secondary" type="button" disabled>Import to Culury</button>
+        <label class="check"><input id="improve" type="checkbox" disabled /> Run through AI correction</label>
+        <p id="import-hint" class="muted"></p>
+      </div>
     </section>
 
     <section class="card" aria-label="Quick note">
@@ -32,6 +37,7 @@
     </section>
 
     <p id="result" class="result" role="status" aria-live="polite"></p>
+    <a id="open-recipe" class="link" target="_blank" rel="noopener" hidden>Open the recipe</a>
 
     <footer class="links">
       <button id="open-inbox" class="link" type="button">Open inbox</button>

@@ -81,8 +81,8 @@ export async function checkConnection(settings, fetchFn = fetch) {
   const r = await call(settings, "/api/key-check", { method: "GET" }, fetchFn);
   if (r.problem) return { ok: false, problem: r.problem };
   if (r.json?.app !== "Culury") return { ok: false, problem: "That address answers, but it doesn't look like Culury. Check the address." };
-  const { name, access, canPushToInbox, canImport, version } = r.json;
-  return { ok: true, name, access, canPushToInbox, canImport, version };
+  const { name, access, canPushToInbox, canImport, version, aiCorrection = false } = r.json;
+  return { ok: true, name, access, canPushToInbox, canImport, aiCorrection, version };
 }
 
 // Send something to the inbox
@@ -90,6 +90,28 @@ export async function push(settings, item, fetchFn = fetch) {
   const r = await call(settings, "/api/inbox", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(item) }, fetchFn);
   if (r.problem) return { ok: false, problem: r.problem };
   return { ok: true, message: r.json?.duplicate ? "Already in your Culury inbox" : "Sent to your Culury inbox", id: r.json?.id };
+}
+
+// Import the page straight into Culury with the Recipe push key. improve: "Run through AI
+// correction" (Culury improves it in the background once it's in). Waits for the import: Culury
+// holds the answer up to 25 seconds, then this follows the job a while longer.
+export async function importPage(settings, page, improve, fetchFn = fetch, { sleep = (ms) => new Promise((r) => setTimeout(r, ms)), tries = 40 } = {}) {
+  if (!settings.importKey) return { ok: false, problem: "Add a Recipe push key in the extension's settings to import directly." };
+  const s = { ...settings, key: settings.importKey };
+  const body = { url: page.url, ...(page.html ? { html: page.html } : {}), ...(improve ? { improve: true } : {}), wait: 25 };
+  let r = await call(s, "/api/recipes/import", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }, fetchFn);
+  for (let i = 0; !r.problem && r.json?.status !== "done" && r.json?.status !== "failed"; i++) {
+    if (i >= tries) return { ok: true, message: "Still importing: it'll be in your Culury recipes shortly." };
+    await sleep(1500);
+    r = await call(s, `/api/imports/${r.json.id}`, { method: "GET" }, fetchFn);
+  }
+  if (r.problem) return { ok: false, problem: r.problem };
+  if (r.json.status === "failed") return { ok: false, problem: r.json.error || "Culury couldn't import that page" };
+  const result = r.json.result ?? {};
+  const address = normalizeAddress(settings.address);
+  if (result.duplicateOf) return { ok: true, message: "Already in your recipes", recipeUrl: `${address}/#/recipes/${result.duplicateOf}` };
+  if (!result.recipeId) return { ok: true, message: "Imported: see your Culury recipes" };
+  return { ok: true, message: `Imported “${result.title}”${result.improving ? ". AI is tidying it up in the background." : ""}`, recipeUrl: `${address}/#/recipes/${result.recipeId}` };
 }
 
 export const ACCESS_LABELS = { read: "Read only", write: "Write only", recipe_push: "Recipe push", grocery_write: "Grocery list write", inbox_push: "Inbox only", admin: "Full admin" };

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { checkConnection, linkItem, noteItem, normalizeAddress, push } from "../src/lib/culury.js";
+import { checkConnection, importPage, linkItem, noteItem, normalizeAddress, push } from "../src/lib/culury.js";
 
 const answer = (status, json) => Promise.resolve(new Response(json === undefined ? null : JSON.stringify(json), { status, headers: { "content-type": "application/json" } }));
 const settings = { address: "http://192.168.86.222:5173", key: "cul_abc123" };
@@ -60,7 +60,7 @@ describe("what's sent for the page you're on", () => {
 describe("talking to Culury", () => {
   it("checking the connection sends the key and says what it may do", async () => {
     const fetch = vi.fn(() => answer(200, { app: "Culury", version: "0.16.0", name: "Culury Companion", access: "inbox_push", canPushToInbox: true, canImport: false }));
-    expect(await checkConnection(settings, fetch)).toEqual({ ok: true, name: "Culury Companion", access: "inbox_push", canPushToInbox: true, canImport: false, version: "0.16.0" });
+    expect(await checkConnection(settings, fetch)).toEqual({ ok: true, name: "Culury Companion", access: "inbox_push", canPushToInbox: true, canImport: false, aiCorrection: false, version: "0.16.0" });
     expect(fetch).toHaveBeenCalledWith("http://192.168.86.222:5173/api/key-check", expect.objectContaining({ headers: expect.objectContaining({ "x-api-key": "cul_abc123" }) }));
   });
 
@@ -87,5 +87,48 @@ describe("talking to Culury", () => {
     expect(await push(settings, {}, () => answer(200, { id: 5, duplicate: true }))).toEqual({ ok: true, message: "Already in your Culury inbox", id: 5 });
     expect(await push(settings, {}, () => answer(403, { error: "This API key's access (Read only) doesn't allow this" }))).toEqual({ ok: false, problem: "This API key's access (Read only) doesn't allow this" });
     expect(await push(settings, {}, () => answer(400, { error: "Invalid request", details: [{ path: "url", message: "Only http:// and https:// addresses" }] }))).toEqual({ ok: false, problem: "Only http:// and https:// addresses" });
+  });
+});
+
+describe("importing straight into Culury (the Recipe push key)", () => {
+  const both = { ...settings, importKey: "cul_import9" };
+  const page = { url: "https://www.example.com/pork-roast", html: "<html>…</html>" };
+  const done = (result) => ({ id: 12, kind: "import-url", status: "done", result, error: null });
+  const noWait = { sleep: () => Promise.resolve() };
+
+  it("sends the page with the import key, and says what came in, with its link", async () => {
+    const fetch = vi.fn(() => answer(200, done({ recipeId: 31, title: "Pork Roast" })));
+    expect(await importPage(both, page, false, fetch, noWait)).toEqual({ ok: true, message: "Imported “Pork Roast”", recipeUrl: "http://192.168.86.222:5173/#/recipes/31" });
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe("http://192.168.86.222:5173/api/recipes/import");
+    expect(init.headers["x-api-key"]).toBe("cul_import9");
+    expect(JSON.parse(init.body)).toEqual({ url: page.url, html: page.html, wait: 25 });
+  });
+
+  it("with AI correction: asks for it, and says it's being tidied up", async () => {
+    const fetch = vi.fn(() => answer(200, done({ recipeId: 31, title: "Pork Roast", improving: 13 })));
+    expect(await importPage(both, page, true, fetch, noWait)).toMatchObject({ ok: true, message: "Imported “Pork Roast”. AI is tidying it up in the background." });
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toMatchObject({ improve: true });
+  });
+
+  it("still going after the wait: follows it until it's done", async () => {
+    const answers = [answer(202, { id: 12, status: "running" }), answer(200, { id: 12, status: "running" }), answer(200, done({ recipeId: 31, title: "Pork Roast" }))];
+    const fetch = vi.fn(() => answers.shift());
+    expect(await importPage(both, page, false, fetch, noWait)).toMatchObject({ ok: true, recipeUrl: "http://192.168.86.222:5173/#/recipes/31" });
+    expect(fetch.mock.calls.slice(1).map(([u]) => u)).toEqual(["http://192.168.86.222:5173/api/imports/12", "http://192.168.86.222:5173/api/imports/12"]);
+  });
+
+  it("already in your recipes, or it couldn't be read", async () => {
+    expect(await importPage(both, page, false, () => answer(200, done({ duplicateOf: 8, title: "Pork Roast" })), noWait)).toEqual({ ok: true, message: "Already in your recipes", recipeUrl: "http://192.168.86.222:5173/#/recipes/8" });
+    expect(await importPage(both, page, false, () => answer(200, { id: 12, status: "failed", error: "No recipe found on that page" }), noWait)).toEqual({ ok: false, problem: "No recipe found on that page" });
+  });
+
+  it("no import key: says where to add one", async () => {
+    expect(await importPage(settings, page, false, vi.fn(), noWait)).toEqual({ ok: false, problem: "Add a Recipe push key in the extension's settings to import directly." });
+  });
+
+  it("taking very long: says it'll turn up in Culury", async () => {
+    const fetch = vi.fn(() => answer(202, { id: 12, status: "running" }));
+    expect(await importPage(both, page, false, fetch, { sleep: () => Promise.resolve(), tries: 3 })).toEqual({ ok: true, message: "Still importing: it'll be in your Culury recipes shortly." });
   });
 });

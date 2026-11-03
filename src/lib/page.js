@@ -33,5 +33,9 @@ export function readPage() {
     }
   }
   const selection = String(getSelection?.() ?? "").trim().slice(0, 20_000) || undefined;
-  return { recipe, selection, title: document.title || undefined };
+  // The page as you see it, for a direct import (Culury reads it instead of fetching the link, so
+  // sites that block Culury still work). Culury takes up to 8 MB; bigger pages go by their link.
+  const page = "<!DOCTYPE html>" + document.documentElement.outerHTML;
+  const html = page.length <= 7_500_000 ? page : undefined;
+  return { recipe, selection, html, title: document.title || undefined };
 }

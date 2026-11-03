@@ -1,5 +1,6 @@
 import { ACCESS_LABELS, linkItem, noteItem } from "../lib/culury.js";
 import { readPage } from "../lib/page.js";
+import { loadSettings, saveImprove } from "../lib/settings.js";
 
 // The toolbar popup: is Culury connected, and send this page or a quick note to the inbox.
 // Everything that talks to Culury goes through the service worker (background/handlers.js).
@@ -10,6 +11,7 @@ const isWeb = (url) => /^https?:\/\//i.test(url ?? "");
 
 // state: "ok", "problem" or "busy" (on its way: not shown as done)
 function say(text, state = "ok") {
+  $("open-recipe").hidden = true;
   const el = $("result");
   el.textContent = text;
   el.dataset.state = state === true ? "ok" : state === false ? "problem" : state;
@@ -57,8 +59,26 @@ export async function init() {
     void send($("send-note"), noteItem(text, tab), () => ($("note").value = ""));
   });
 
-  // Connected? (and can this key send to the inbox?)
+  // Import to Culury (the Recipe push key), with or without AI correction
+  const saved = await loadSettings();
+  $("improve").checked = !!saved.improve;
+  $("improve").addEventListener("change", () => void saveImprove($("improve").checked));
+  $("import").addEventListener("click", async () => {
+    $("import").disabled = true;
+    say($("improve").checked ? "Importing… then AI tidies it up" : "Importing…", "busy");
+    const instagram = /(^|\.)instagram\.com$/i.test(new URL(tab.url).hostname); // Culury reads the post itself
+    const r = await ask({ type: "import", page: { url: tab.url, ...(page.html && !instagram ? { html: page.html } : {}) }, improve: $("improve").checked });
+    say(r.ok ? r.message : r.problem, r.ok);
+    if (r.recipeUrl) {
+      $("open-recipe").href = r.recipeUrl;
+      $("open-recipe").hidden = false;
+    }
+    $("import").disabled = false;
+  });
+
+  // Connected? (and can these keys send to the inbox, and import?)
   const c = await ask({ type: "check" });
+  showImport(c.import, web);
   const status = $("status");
   if (!c.ok) {
     status.textContent = c.problem;
@@ -74,6 +94,20 @@ export async function init() {
   status.dataset.state = "ok";
   $("send").disabled = !web;
   $("send-note").disabled = false;
+}
+
+// The import part of the popup: ready, or what it needs
+function showImport(imp, web) {
+  const hint = $("import-hint");
+  if (!imp) return void (hint.textContent = "Add a Recipe push key in Settings to import straight into Culury.");
+  if (!imp.ok) return void (hint.textContent = imp.problem);
+  if (!imp.canImport) return void (hint.textContent = `The import key (${ACCESS_LABELS[imp.access] ?? imp.access}) can't import: make a Recipe push key in Culury's Settings › API keys.`);
+  $("import").disabled = !web;
+  $("improve").disabled = !imp.aiCorrection;
+  if (!imp.aiCorrection) {
+    $("improve").checked = false;
+    hint.textContent = "AI correction needs AI in Culury (Settings › AI, with Improve with AI on).";
+  } else hint.textContent = "";
 }
 
 if (globalThis.chrome?.runtime?.id) void init();

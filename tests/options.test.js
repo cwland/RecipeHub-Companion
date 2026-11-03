@@ -24,7 +24,7 @@ describe("the options page", () => {
     await until(() => expect($("#result").textContent).toMatch(/Connected to Culury 0\.16\.0 as “Culury Companion” \(Inbox only\)/));
     expect(chrome.permissions.request).toHaveBeenCalledWith({ origins: ["http://192.168.86.222:5173/*"] });
     expect(fetch).toHaveBeenCalledWith("http://192.168.86.222:5173/api/key-check", expect.anything());
-    expect(store).toEqual({ address: "http://192.168.86.222:5173", key: "cul_abc123" });
+    expect(store).toEqual({ address: "http://192.168.86.222:5173", key: "cul_abc123", importKey: "" });
     expect($("#address").value).toBe("http://192.168.86.222:5173");
   });
 
@@ -77,5 +77,45 @@ describe("the options page", () => {
     $("#key").value = "";
     submit();
     await until(() => expect($("#result").textContent).toBe("Paste your API key"));
+  });
+
+  describe("the key for Direct Import (optional)", () => {
+    const importer = { ...connected, name: "Culury Companion import", access: "recipe_push", canPushToInbox: false, canImport: true, aiCorrection: true };
+    const byKey = () => vi.fn((url, init) => answer(200, init.headers["x-api-key"] === "cul_import9" ? importer : init.headers["x-api-key"] === "cul_inbox2" ? { ...connected, name: "Other inbox key" } : connected));
+
+    it("is tested too, and saved", async () => {
+      const { store } = fakeChrome({ fetch: byKey() });
+      await init();
+      $("#address").value = "https://culury.example.com";
+      $("#key").value = "cul_abc";
+      $("#import-key").value = "cul_import9";
+      submit();
+      await until(() => expect($("#result").textContent).toMatch(/Saved/));
+      expect($("#result").textContent).toMatch(/Direct Import: “Culury Companion import” \(Recipe push\)/);
+      expect(store).toEqual({ address: "https://culury.example.com", key: "cul_abc", importKey: "cul_import9" });
+    });
+
+    it("a key that can't import: says which kind to use, and saves nothing", async () => {
+      const { store } = fakeChrome({ fetch: byKey() });
+      await init();
+      $("#address").value = "https://culury.example.com";
+      $("#key").value = "cul_abc";
+      $("#import-key").value = "cul_inbox2";
+      submit();
+      await until(() => expect($("#result").textContent).toMatch(/The Direct Import key \(Inbox only\) can't import: make a Recipe push key/));
+      expect(store).toEqual({});
+    });
+
+    it("left empty: no Direct Import", async () => {
+      const { store } = fakeChrome({ stored: { importKey: "cul_old" }, fetch: byKey() });
+      await init();
+      expect($("#import-key").value).toBe("cul_old");
+      $("#address").value = "https://culury.example.com";
+      $("#key").value = "cul_abc";
+      $("#import-key").value = "";
+      submit();
+      await until(() => expect($("#result").textContent).toMatch(/Saved/));
+      expect(store.importKey).toBe("");
+    });
   });
 });

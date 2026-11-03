@@ -119,4 +119,81 @@ describe("the popup", () => {
     await init();
     await until(() => expect($("#status").textContent).toMatch(/Can't reach Culury at http:\/\/192\.168\.86\.222:5173/));
   });
+
+  describe("Import to Culury", () => {
+    const both = { ...stored, importKey: "cul_import9" };
+    const importer = { app: "Culury", version: "0.16.0", name: "Culury Companion import", access: "recipe_push", canPushToInbox: false, canImport: true, aiCorrection: true };
+    const routesFor = (check, more = {}) =>
+      vi.fn(async (url, init) => {
+        const path = url.replace(/^https?:\/\/[^/]+/, "");
+        if (path === "/api/key-check") return answer(200, init.headers["x-api-key"] === "cul_import9" ? check : connected);
+        const key = `${init?.method ?? "GET"} ${path}`;
+        return more[key] ? more[key](JSON.parse(init.body ?? "null")) : answer(404, { error: "no fake" });
+      });
+
+    it("imports the page as you see it, and links to the recipe", async () => {
+      const fetch = routesFor(importer, { "POST /api/recipes/import": () => answer(200, { id: 12, status: "done", result: { recipeId: 31, title: "Pork Roast" } }) });
+      fakeChrome({ stored: both, fetch, page: { html: "<html>pork</html>" } });
+      await init();
+      await until(() => expect(byText("Import to Culury").disabled).toBe(false));
+      expect($("#improve").checked).toBe(false);
+      byText("Import to Culury").click();
+      await until(() => expect($("#result").textContent).toBe("Imported “Pork Roast”"));
+      expect($("#open-recipe").href).toBe("http://192.168.86.222:5173/#/recipes/31");
+      expect($("#open-recipe").hidden).toBe(false);
+      const sent = JSON.parse(fetch.mock.calls.find(([u]) => u.endsWith("/api/recipes/import"))[1].body);
+      expect(sent).toEqual({ url: "https://www.example.com/pork-roast", html: "<html>pork</html>", wait: 25 });
+    });
+
+    it("Run through AI correction: asks for it, and remembers the choice", async () => {
+      const fetch = routesFor(importer, { "POST /api/recipes/import": () => answer(200, { id: 12, status: "done", result: { recipeId: 31, title: "Pork Roast", improving: 13 } }) });
+      const { store } = fakeChrome({ stored: both, fetch });
+      await init();
+      await until(() => expect($("#improve").disabled).toBe(false));
+      $("#improve").click();
+      expect(store.improve).toBe(true);
+      byText("Import to Culury").click();
+      await until(() => expect($("#result").textContent).toMatch(/AI is tidying it up/));
+      expect(JSON.parse(fetch.mock.calls.find(([u]) => u.endsWith("/api/recipes/import"))[1].body)).toMatchObject({ improve: true });
+    });
+
+    it("the choice is ticked next time", async () => {
+      fakeChrome({ stored: { ...both, improve: true }, fetch: routesFor(importer) });
+      await init();
+      await until(() => expect($("#improve").checked).toBe(true));
+    });
+
+    it("AI not set up in Culury: AI correction can't be ticked, and says why", async () => {
+      fakeChrome({ stored: { ...both, improve: true }, fetch: routesFor({ ...importer, aiCorrection: false }) });
+      await init();
+      await until(() => expect(byText("Import to Culury").disabled).toBe(false));
+      expect($("#improve").disabled).toBe(true);
+      expect($("#improve").checked).toBe(false);
+      expect($("#import-hint").textContent).toMatch(/AI correction needs AI in Culury/);
+    });
+
+    it("no import key: says where to add one", async () => {
+      fakeChrome({ stored, fetch: routesFor(importer) });
+      await init();
+      await until(() => expect($("#import-hint").textContent).toMatch(/Add a Recipe push key in Settings/));
+      expect(byText("Import to Culury").disabled).toBe(true);
+    });
+
+    it("an import key that can't import: says so", async () => {
+      fakeChrome({ stored: both, fetch: routesFor({ ...importer, access: "read", canImport: false }) });
+      await init();
+      await until(() => expect($("#import-hint").textContent).toMatch(/can't import.*Recipe push/));
+      expect(byText("Import to Culury").disabled).toBe(true);
+    });
+
+    it("Instagram goes by its link (Culury reads the post itself)", async () => {
+      const fetch = routesFor(importer, { "POST /api/recipes/import": () => answer(200, { id: 12, status: "done", result: { recipeId: 32, title: "Smashed potatoes" } }) });
+      fakeChrome({ stored: both, fetch, tab: { id: 3, url: "https://www.instagram.com/reel/abc/", title: "Instagram" }, page: { html: "<html>insta</html>" } });
+      await init();
+      await until(() => expect(byText("Import to Culury").disabled).toBe(false));
+      byText("Import to Culury").click();
+      await until(() => expect($("#result").textContent).toBe("Imported “Smashed potatoes”"));
+      expect(JSON.parse(fetch.mock.calls.find(([u]) => u.endsWith("/api/recipes/import"))[1].body)).toEqual({ url: "https://www.instagram.com/reel/abc/", wait: 25 });
+    });
+  });
 });

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Culury Companion",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Send recipes, links and notes from your browser to your Culury inbox.",
   "icons": { "16": "assets/icons/icon-16.png", "32": "assets/icons/icon-32.png", "48": "assets/icons/icon-48.png", "128": "assets/icons/icon-128.png" },
   "action": {

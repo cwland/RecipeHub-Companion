@@ -7,3 +7,4 @@ form.card { gap: 6px; padding: 20px; }
 .label:first-child { margin-top: 0; }
 .hint { margin: 2px 0 0; font-size: 13px; color: var(--subtle); }
 .actions { margin-top: 16px; }
+.optional { font-weight: 400; }

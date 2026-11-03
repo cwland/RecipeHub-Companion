@@ -9,3 +9,8 @@ body { width: 340px; padding: 12px; display: flex; flex-direction: column; gap: 
 #page-kind:not(:empty)::before { content: "· "; }
 #page-site:empty + #page-kind::before { content: ""; }
 .links { display: flex; justify-content: space-between; }
+.import { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 10px; }
+.check { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.check:has(input:disabled) { color: var(--subtle); }
+#import-hint:empty { display: none; }
+#open-recipe { align-self: flex-start; margin-top: -4px; }
