@@ -30,13 +30,22 @@
       </div>
     </section>
 
-    <label class="switch card">
-      <input id="bubble" type="checkbox" role="switch" disabled />
-      <span>
-        <b>Floating button on this page</b>
-        <span class="muted">Push or import from the page itself. Only on this page, until you leave it.</span>
-      </span>
-    </label>
+    <section class="card switches" aria-label="Floating button">
+      <label class="switch">
+        <input id="bubble" type="checkbox" role="switch" disabled />
+        <span>
+          <b>Floating button on this page</b>
+          <span class="muted">Send or import from the page itself. Only on this page, until you leave it.</span>
+        </span>
+      </label>
+      <label class="switch">
+        <input id="always" type="checkbox" role="switch" disabled />
+        <span>
+          <b>Always show on this site</b>
+          <span class="muted">The button appears by itself on every page of <span id="always-site"></span>. The browser asks once to let the extension read it.</span>
+        </span>
+      </label>
+    </section>
 
 
     <p id="result" class="result" role="status" aria-live="polite"></p>

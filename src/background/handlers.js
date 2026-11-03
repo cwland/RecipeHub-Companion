@@ -2,6 +2,7 @@ import { checkConnection, importPage, linkItem, normalizeAddress, push } from ".
 import { readPage } from "../lib/page.js";
 import { showBanner } from "../lib/banner.js";
 import { loadSettings } from "../lib/settings.js";
+import { listSites, removeSite, siteOf } from "../lib/sites.js";
 
 // What the popup (and later the on-page bubble) asks the service worker to do. The worker does the
 // talking to Culury: it has the permission to reach Culury's address, a web page doesn't.
@@ -12,7 +13,9 @@ import { loadSettings } from "../lib/settings.js";
 //   { type: "open-inbox" }        open Culury's inbox in a new tab
 //   { type: "act", action, tab? } "push" or "import" for a page: the floating button's tab
 //                                 (sender.tab), or the one the popup names; a banner on the page says how it went
-//   { type: "bubble-state" }      what the floating button can do (keys set up; import with AI correction?)
+//   { type: "bubble-state" }      what the floating button can do (keys set up; import with AI correction?;
+//                                 always: this site is one where it shows by itself)
+//   { type: "always-off" }        the floating button's "Stop showing on this site"
 export async function handle(msg, { chrome = globalThis.chrome, fetch = globalThis.fetch, sender } = {}) {
   const settings = msg.settings ?? (await loadSettings(chrome));
   switch (msg?.type) {
@@ -37,7 +40,15 @@ export async function handle(msg, { chrome = globalThis.chrome, fetch = globalTh
       const [inbox, imp] = await Promise.all([checkConnection(settings, fetch), settings.importKey ? checkConnection({ ...settings, key: settings.importKey }, fetch) : null]);
       if (!inbox.ok) return { ok: false, problem: inbox.problem };
       const canImport = !!(imp?.ok && imp.canImport);
-      return { ok: true, canPush: !!inbox.canPushToInbox, canImport, improve: canImport && !!settings.improve && !!imp.aiCorrection };
+      const always = !!sender?.tab?.url && (await listSites(chrome)).includes(siteOf(sender.tab.url));
+      return { ok: true, canPush: !!inbox.canPushToInbox, canImport, improve: canImport && !!settings.improve && !!imp.aiCorrection, always };
+    }
+    case "always-off": {
+      // the floating button's "Stop showing on this site"
+      const site = siteOf(sender?.tab?.url ?? "");
+      if (!site) break;
+      await removeSite(site, chrome);
+      return { ok: true };
     }
     case "act": {
       // the popup names its tab (it closes straight away); the floating button: the tab it is on

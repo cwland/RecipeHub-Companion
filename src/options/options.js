@@ -1,5 +1,6 @@
 import { ACCESS_LABELS, normalizeAddress } from "../lib/culury.js";
 import { loadSettings, saveSettings } from "../lib/settings.js";
+import { listSites, removeSite } from "../lib/sites.js";
 
 // The options page: Culury's address and the API key. Saved only once the test passes, so a
 // typo never replaces settings that work.
@@ -19,10 +20,40 @@ export async function init() {
   $("key").value = saved.key;
   $("import-key").value = saved.importKey;
 
+  await showSites();
+
   document.querySelector("form").addEventListener("submit", (e) => {
     e.preventDefault();
     void save();
   });
+}
+
+// The sites where the floating button appears by itself, each with Remove
+async function showSites() {
+  const sites = await listSites();
+  const list = $("sites");
+  list.replaceChildren(
+    ...sites.map((site) => {
+      const li = document.createElement("li");
+      const name = document.createElement("span");
+      name.className = "site";
+      name.textContent = new URL(site).hostname.replace(/^www\./, "");
+      name.title = site;
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "secondary";
+      remove.textContent = "Remove";
+      remove.setAttribute("aria-label", `Remove ${name.textContent}`);
+      remove.addEventListener("click", async () => {
+        remove.disabled = true;
+        await removeSite(site);
+        await showSites();
+      });
+      li.append(name, remove);
+      return li;
+    })
+  );
+  $("sites-empty").hidden = sites.length > 0;
 }
 
 async function save() {

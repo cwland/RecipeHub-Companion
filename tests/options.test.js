@@ -118,4 +118,25 @@ describe("the options page", () => {
       expect(store.importKey).toBe("");
     });
   });
+
+  describe("sites where the floating button shows by itself", () => {
+    it("are listed A–Z, each with Remove", async () => {
+      const { store, chrome, granted } = fakeChrome({ stored: { alwaysSites: ["https://cooking.nytimes.com", "https://www.seriouseats.com"] }, fetch: vi.fn() });
+      granted.add("https://cooking.nytimes.com/*").add("https://www.seriouseats.com/*"); // allowed when they were added
+      await init();
+      const items = [...document.querySelectorAll("#sites li")];
+      expect(items.map((li) => li.querySelector(".site").textContent)).toEqual(["cooking.nytimes.com", "seriouseats.com"]);
+      items[1].querySelector("button").click();
+      await until(() => expect(store.alwaysSites).toEqual(["https://cooking.nytimes.com"]));
+      expect(chrome.permissions.remove).toHaveBeenCalledWith({ origins: ["https://www.seriouseats.com/*"] });
+      await until(() => expect(document.querySelectorAll("#sites li")).toHaveLength(1));
+    });
+
+    it("none yet: says how to add one", async () => {
+      fakeChrome({ fetch: vi.fn() });
+      await init();
+      expect($("#sites-empty").hidden).toBe(false);
+      expect($("#sites-empty").textContent).toMatch(/Always show on this site/);
+    });
+  });
 });

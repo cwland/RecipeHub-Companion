@@ -95,6 +95,15 @@
       if (state.canPush) action("📬 Send to Inbox", "push");
       if (state.canImport) action(state.improve ? "⚡ Import with AI correction" : "⚡ Import", "import");
       if (!state.canPush && !state.canImport) add("div", "note", "These keys can't send anything: check them in the extension's settings.");
+      if (state.always) {
+        const stop = add("button", "hide", "Stop showing on this site");
+        stop.type = "button";
+        stop.setAttribute("role", "menuitem");
+        stop.addEventListener("click", () => {
+          remove();
+          ask({ type: "always-off" }).catch(() => {});
+        });
+      }
     }
     const hide = add("button", "hide", "Hide");
     hide.type = "button";

@@ -75,6 +75,24 @@ describe("the floating bubble", () => {
     expect(item("Import")).toBeUndefined();
   });
 
+  it("on a site where it always shows: Stop showing on this site", async () => {
+    const send = worker({ ok: true, canPush: true, canImport: false, improve: false, always: true });
+    inject();
+    click(root().querySelector("button[aria-label='Culury Companion']"));
+    await until(() => expect(item("Stop showing on this site")).toBeTruthy());
+    item("Stop showing on this site").click();
+    await until(() => expect(send).toHaveBeenCalledWith({ type: "always-off" }));
+    await until(() => expect(host()).toBeNull());
+  });
+
+  it("not on such a site: no Stop showing", async () => {
+    worker();
+    inject();
+    click(root().querySelector("button[aria-label='Culury Companion']"));
+    await until(() => expect(item("Hide")).toBeTruthy());
+    expect(item("Stop showing")).toBeUndefined();
+  });
+
   it("not set up: the menu says so", async () => {
     worker({ ok: false, problem: "Add your Culury address and API key in the extension's settings." });
     inject();

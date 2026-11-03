@@ -164,4 +164,43 @@ describe("the popup", () => {
       await until(() => expect($("#bubble").checked).toBe(true));
     });
   });
+
+  describe("Always show on this site", () => {
+    it("asks the browser for this site, adds it, and puts the button on now", async () => {
+      const { chrome, onPage, registered, store } = fakeChrome({ stored, fetch: culury() });
+      await init();
+      await until(() => expect($("#always").disabled).toBe(false));
+      expect($("#always-site").textContent).toBe("example.com");
+      $("#always").click();
+      await until(() => expect(store.alwaysSites).toEqual(["https://www.example.com"]));
+      expect(chrome.permissions.request).toHaveBeenCalledWith({ origins: ["https://www.example.com/*"] });
+      expect(registered.get("always-show").matches).toEqual(["https://www.example.com/*"]);
+      await until(() => expect(onPage.bubble).toBe(true));
+      expect($("#bubble").checked).toBe(true);
+    });
+
+    it("on for a site already in the list; off takes it out", async () => {
+      const { store } = fakeChrome({ stored: { ...stored, alwaysSites: ["https://www.example.com"] }, fetch: culury() });
+      await init();
+      await until(() => expect($("#always").checked).toBe(true));
+      $("#always").click();
+      await until(() => expect(store.alwaysSites).toEqual([]));
+    });
+
+    it("the browser says no: stays off, and says why", async () => {
+      fakeChrome({ stored, fetch: culury(), allow: false });
+      await init();
+      await until(() => expect($("#always").disabled).toBe(false));
+      $("#always").click();
+      await until(() => expect($("#result").textContent).toMatch(/needs your OK to read example\.com/));
+      expect($("#always").checked).toBe(false);
+    });
+
+    it("not on browser pages", async () => {
+      fakeChrome({ stored, fetch: culury(), tab: { id: 2, url: "chrome://newtab/", title: "New Tab" }, page: new Error("Cannot access a chrome:// URL") });
+      await init();
+      await until(() => expect($("#page-kind").textContent).toMatch(/isn't a web page/));
+      expect($("#always").disabled).toBe(true);
+    });
+  });
 });

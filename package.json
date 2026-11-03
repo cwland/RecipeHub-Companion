@@ -1,8 +1,8 @@
 {
   "name": "culury-companion",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
-  "description": "Send recipes, links and notes from your browser to Culury",
+  "description": "Send the recipe page you’re on to Culury, or import it straight in",
   "type": "module",
   "scripts": {
     "test": "vitest run",

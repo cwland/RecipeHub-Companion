@@ -1,6 +1,7 @@
 import { ACCESS_LABELS } from "../lib/culury.js";
 import { readPage } from "../lib/page.js";
 import { loadSettings, saveImprove } from "../lib/settings.js";
+import { addSite, listSites, removeSite, siteOf } from "../lib/sites.js";
 
 // Run in the page (the extension's isolated world, where the bubble keeps its handle)
 function bubbleHere() {
@@ -64,17 +65,34 @@ export async function init() {
   $("improve").checked = !!saved.improve;
   $("improve").addEventListener("change", () => void saveImprove($("improve").checked));
 
-  // The floating button on this page (web pages only)
+  // The floating button on this page (web pages only), and "Always show on this site"
   if (web) {
     const run = (opts) => chrome.scripting.executeScript({ target: { tabId: tab.id }, ...opts });
+    const putOn = () => run({ files: ["src/content/content_script.js"] });
     try {
       const [here] = await run({ func: bubbleHere });
       $("bubble").checked = !!here?.result;
       $("bubble").disabled = false;
-      $("bubble").addEventListener("change", () => void ($("bubble").checked ? run({ files: ["src/content/content_script.js"] }) : run({ func: hideBubble })).catch(() => say("The button can't go on this page", false)));
+      $("bubble").addEventListener("change", () => void ($("bubble").checked ? putOn() : run({ func: hideBubble })).catch(() => say("The button can't go on this page", false)));
     } catch {
       /* a page the extension can't touch (the Web Store, a PDF) */
     }
+    const site = siteOf(tab.url);
+    const name = new URL(site).hostname.replace(/^www\./, "");
+    $("always-site").textContent = name;
+    $("always").checked = (await listSites()).includes(site);
+    $("always").disabled = $("bubble").disabled;
+    $("always").addEventListener("change", async () => {
+      if (!$("always").checked) return void (await removeSite(site));
+      if (!(await addSite(site))) {
+        $("always").checked = false;
+        return say(`“Always show” needs your OK to read ${name}. Try again and choose Allow.`, false);
+      }
+      if (!$("bubble").checked) {
+        $("bubble").checked = true;
+        await putOn().catch(() => {});
+      }
+    });
   }
 
   // Connected? (and can these keys send to the inbox, and import?)

@@ -19,7 +19,7 @@ const culury = (more = {}) =>
 describe("what the floating button can do", () => {
   it("both keys: send, and import (with AI correction when it's ticked and Culury can)", async () => {
     const { chrome } = fakeChrome({ stored: { ...stored, improve: true } });
-    expect(await handle({ type: "bubble-state" }, { chrome, fetch: culury(), sender })).toEqual({ ok: true, canPush: true, canImport: true, improve: true });
+    expect(await handle({ type: "bubble-state" }, { chrome, fetch: culury(), sender })).toEqual({ ok: true, canPush: true, canImport: true, improve: true, always: false });
   });
 
   it("AI correction ticked, but Culury can't: a plain import", async () => {
@@ -30,7 +30,16 @@ describe("what the floating button can do", () => {
 
   it("only the inbox key: send only", async () => {
     const { chrome } = fakeChrome({ stored: { ...stored, importKey: "" } });
-    expect(await handle({ type: "bubble-state" }, { chrome, fetch: culury(), sender })).toEqual({ ok: true, canPush: true, canImport: false, improve: false });
+    expect(await handle({ type: "bubble-state" }, { chrome, fetch: culury(), sender })).toEqual({ ok: true, canPush: true, canImport: false, improve: false, always: false });
+  });
+
+  it("knows when it's on a site where it always shows; Stop showing takes the site out", async () => {
+    const { chrome, store, registered } = fakeChrome({ stored: { ...stored, alwaysSites: ["https://www.example.com"] } });
+    await chrome.scripting.registerContentScripts([{ id: "always-show", matches: ["https://www.example.com/*"], js: ["src/content/content_script.js"] }]);
+    expect(await handle({ type: "bubble-state" }, { chrome, fetch: culury(), sender })).toMatchObject({ always: true });
+    expect(await handle({ type: "always-off" }, { chrome, fetch: culury(), sender })).toEqual({ ok: true });
+    expect(store.alwaysSites).toEqual([]);
+    expect(registered.size).toBe(0);
   });
 
   it("not set up: says so", async () => {
