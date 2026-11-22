@@ -6,7 +6,7 @@ import { addSite, listSites, removeSite, siteOf, syncSites } from "../src/lib/si
 describe("a site", () => {
   it("is a page's address down to its host", () => {
     expect(siteOf("https://www.seriouseats.com/the-food-lab-best-chili-recipe?x=1#top")).toBe("https://www.seriouseats.com");
-    expect(siteOf("http://192.168.86.222:5173/#/recipes")).toBe("http://192.168.86.222:5173");
+    expect(siteOf("http://192.168.1.20:5173/#/recipes")).toBe("http://192.168.1.20:5173");
     expect(siteOf("chrome://newtab/")).toBeNull();
     expect(siteOf("not a url")).toBeNull();
   });
@@ -47,12 +47,12 @@ describe("the list of sites", () => {
     expect(registered.size).toBe(0);
   });
 
-  it("Culury's own address keeps its permission (the extension needs it to reach Culury)", async () => {
-    const { chrome, granted } = fakeChrome({ stored: { address: "http://192.168.86.222:5173" } });
-    await addSite("http://192.168.86.222:5173", chrome);
-    await removeSite("http://192.168.86.222:5173", chrome);
+  it("RecipeHub's own address keeps its permission (the extension needs it to reach RecipeHub)", async () => {
+    const { chrome, granted } = fakeChrome({ stored: { address: "http://192.168.1.20:5173" } });
+    await addSite("http://192.168.1.20:5173", chrome);
+    await removeSite("http://192.168.1.20:5173", chrome);
     expect(chrome.permissions.remove).not.toHaveBeenCalled();
-    expect(granted.has("http://192.168.86.222:5173/*")).toBe(true);
+    expect(granted.has("http://192.168.1.20:5173/*")).toBe(true);
   });
 
   it("a site whose access was taken away in the browser's settings drops off the list", async () => {

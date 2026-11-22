@@ -1,17 +1,38 @@
 {
   "manifest_version": 3,
-  "name": "Culury Companion",
-  "version": "0.5.0",
-  "description": "Send the recipe page you’re on to your Culury inbox, or import it straight in.",
-  "icons": { "16": "assets/icons/icon-16.png", "32": "assets/icons/icon-32.png", "48": "assets/icons/icon-48.png", "128": "assets/icons/icon-128.png" },
-  "action": {
-    "default_title": "Culury Companion",
-    "default_popup": "src/popup/popup.html",
-    "default_icon": { "16": "assets/icons/icon-16.png", "32": "assets/icons/icon-32.png" }
+  "name": "RecipeHub Companion",
+  "version": "1.0.0",
+  "description": "Send the recipe page you’re on to your RecipeHub inbox, or import it straight in.",
+  "icons": {
+    "16": "assets/icons/icon-16.png",
+    "32": "assets/icons/icon-32.png",
+    "48": "assets/icons/icon-48.png",
+    "128": "assets/icons/icon-128.png"
   },
-  "options_ui": { "page": "src/options/options.html", "open_in_tab": true },
-  "background": { "service_worker": "src/background/service_worker.js", "type": "module" },
-  "permissions": ["storage", "activeTab", "scripting"],
-  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "action": {
+    "default_title": "RecipeHub Companion",
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "assets/icons/icon-16.png",
+      "32": "assets/icons/icon-32.png"
+    }
+  },
+  "options_ui": {
+    "page": "src/options/options.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "src/background/service_worker.js",
+    "type": "module"
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
   "minimum_chrome_version": "116"
 }

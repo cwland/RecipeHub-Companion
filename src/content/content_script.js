@@ -1,10 +1,10 @@
 // The floating bubble: put on a page by the popup's "Floating button on this page" switch, and only
 // on that page (it's gone when you leave the page or close the tab). A plain script, run in the
 // extension's own isolated world. It's only the buttons: the service worker reads the page and
-// talks to Culury (background/handlers.js), so no key ever reaches the page, and shows how it
+// talks to RecipeHub (background/handlers.js), so no key ever reaches the page, and shows how it
 // went in a banner at the top of the page (lib/banner.js).
 (() => {
-  if (window.__culuryCompanion?.present()) return window.__culuryCompanion.show();
+  if (window.__recipehubCompanion?.present()) return window.__recipehubCompanion.show();
 
   const SIZE = 48;
   const EDGE = 12;
@@ -32,7 +32,7 @@
   const ICON = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.5c2.6 1.6 3.4 5.2 1.5 7.9-1 1.4-2.6 2.1-3.9 2.3-.5-1.6-.4-3.4.5-5A7 7 0 0 1 12 2.5Z" fill="#fff"/><path d="M11 12.4c.4-2 1.2-3.6 2.3-5" stroke="#13803d" stroke-width="1"/><path d="M4 14h4.2a3.8 3.8 0 0 0 7.6 0H20v4.2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V14Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
 
   const host = document.createElement("div");
-  host.id = "culury-companion-bubble";
+  host.id = "recipehub-companion-bubble";
   host.style.cssText = `position: fixed; z-index: 2147483647; left: ${innerWidth - SIZE - EDGE}px; top: ${Math.round(innerHeight * 0.4)}px;`;
   const root = host.attachShadow({ mode: "open" });
   // Styles that the page can't change, and that can't change the page (and work under a strict CSP)
@@ -47,8 +47,8 @@
   }
   root.innerHTML += `
     <div class="wrap">
-      <button class="bubble" type="button" aria-label="Culury Companion" title="Culury Companion (drag to move)" aria-haspopup="menu" aria-expanded="false">${ICON}</button>
-      <div class="menu" role="menu" aria-label="Culury Companion" hidden></div>
+      <button class="bubble" type="button" aria-label="RecipeHub Companion" title="RecipeHub Companion (drag to move)" aria-haspopup="menu" aria-expanded="false">${ICON}</button>
+      <div class="menu" role="menu" aria-label="RecipeHub Companion" hidden></div>
     </div>`;
   const button = root.querySelector(".bubble");
   const menu = root.querySelector(".menu");
@@ -80,8 +80,8 @@
       menu.append(el);
       return el;
     };
-    add("div", "title", "Culury Companion");
-    if (!state) add("div", "", "Checking Culury…").style.cssText = "padding: 6px 10px; color: var(--subtle);";
+    add("div", "title", "RecipeHub Companion");
+    if (!state) add("div", "", "Checking RecipeHub…").style.cssText = "padding: 6px 10px; color: var(--subtle);";
     else if (!state.ok) add("div", "note", state.problem);
     else {
       const action = (label, act, enabled = true, why = "") => {
@@ -117,7 +117,7 @@
     menu.hidden = false;
     button.setAttribute("aria-expanded", "true");
     if (!state) {
-      state = await ask({ type: "bubble-state" }).catch(() => ({ ok: false, problem: "Culury Companion was updated: switch the floating button on again from the toolbar." }));
+      state = await ask({ type: "bubble-state" }).catch(() => ({ ok: false, problem: "RecipeHub Companion was updated: switch the floating button on again from the toolbar." }));
       if (!menu.hidden) fillMenu();
     }
     menu.querySelector("button:not(:disabled)")?.focus();
@@ -131,7 +131,7 @@
   // The extension was updated or reloaded since the button was put here: it can't reach it any more
   function alertGone() {
     remove();
-    console.info("Culury Companion was updated: switch the floating button on again from the toolbar.");
+    console.info("RecipeHub Companion was updated: switch the floating button on again from the toolbar.");
   }
 
   function remove() {
@@ -189,7 +189,7 @@
   document.addEventListener("keydown", onKey, true);
 
   // For the popup's switch: is it here, take it away, bring it back into view
-  window.__culuryCompanion = {
+  window.__recipehubCompanion = {
     present: () => host.isConnected,
     remove,
     show: () => {

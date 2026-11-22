@@ -1,4 +1,4 @@
-import { normalizeAddress } from "./culury.js";
+import { normalizeAddress } from "./recipehub.js";
 
 // "Always show on this site": the sites where the floating button appears by itself. Each needs the
 // browser's OK to read that site (asked when it's added, given back when it's removed), and the
@@ -33,15 +33,15 @@ export async function addSite(site, chrome = globalThis.chrome) {
 
 export async function removeSite(site, chrome = globalThis.chrome) {
   await saveSites((await listSites(chrome)).filter((s) => s !== site), chrome);
-  // give the permission back, except for Culury's own address (needed to reach Culury)
+  // give the permission back, except for RecipeHub's own address (needed to reach RecipeHub)
   const { address } = await chrome.storage.local.get({ address: "" });
-  let culury = null;
+  let recipehub = null;
   try {
-    culury = normalizeAddress(address);
+    recipehub = normalizeAddress(address);
   } catch {
     /* not set up */
   }
-  if (site !== culury) await chrome.permissions.remove({ origins: [pattern(site)] }).catch(() => {});
+  if (site !== recipehub) await chrome.permissions.remove({ origins: [pattern(site)] }).catch(() => {});
   await syncSites(chrome);
 }
 

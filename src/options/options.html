@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Culury Companion settings</title>
+    <title>RecipeHub Companion settings</title>
     <link rel="stylesheet" href="../ui.css" />
     <link rel="stylesheet" href="options.css" />
   </head>
@@ -12,23 +12,23 @@
       <header class="top">
         <img src="../../assets/icons/icon-48.png" alt="" width="40" height="40" />
         <div>
-          <h1>Culury Companion</h1>
-          <p class="muted">Send the recipe page you’re on to Culury’s inbox, or import it straight in.</p>
+          <h1>RecipeHub Companion</h1>
+          <p class="muted">Send the recipe page you’re on to RecipeHub’s inbox, or import it straight in.</p>
         </div>
       </header>
 
       <form class="card" novalidate>
-        <label class="label" for="address">Culury's address</label>
-        <input id="address" type="text" inputmode="url" autocomplete="url" placeholder="http://192.168.1.20:5173 or https://culury.example.com" required />
-        <p class="hint">The address you open Culury on. The browser asks once to let the extension reach it.</p>
+        <label class="label" for="address">RecipeHub's address</label>
+        <input id="address" type="text" inputmode="url" autocomplete="url" placeholder="http://192.168.1.20:5173 or https://recipehub.example.com" required />
+        <p class="hint">The address you open RecipeHub on. The browser asks once to let the extension reach it.</p>
 
         <label class="label" for="key">API key</label>
         <input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="cul_…" required />
-        <p class="hint">In Culury: <b>Settings › API keys</b>, name it “Culury Companion”, choose <b>Inbox only</b>, then <b>Create key</b> and paste it here. The key is kept in this browser only.</p>
+        <p class="hint">In RecipeHub: <b>Settings › API keys</b>, name it “RecipeHub Companion”, choose <b>Inbox only</b>, then <b>Create key</b> and paste it here. The key is kept in this browser only.</p>
 
         <label class="label" for="import-key">API key for Direct Import <span class="optional">(optional)</span></label>
         <input id="import-key" type="password" autocomplete="off" spellcheck="false" placeholder="cul_…" />
-        <p class="hint">For <b>Import to Culury</b> (straight into your recipes, with or without AI correction). Make a second key with <b>Recipe push</b> access, name it “Culury Companion import”. Leave it empty to only send to the inbox.</p>
+        <p class="hint">For <b>Import to RecipeHub</b> (straight into your recipes, with or without AI correction). Make a second key with <b>Recipe push</b> access, name it “RecipeHub Companion import”. Leave it empty to only send to the inbox.</p>
 
         <div class="actions">
           <button class="primary" type="submit">Save and test</button>

@@ -6,10 +6,10 @@ import { init } from "../src/popup/popup.js";
 // The toolbar popup: is it connected; Send to Inbox or Import this page (the popup closes and a
 // banner at the top of the page says how it went); the floating button switch
 const html = fs.readFileSync("src/popup/popup.html", "utf8");
-const stored = { address: "http://192.168.86.222:5173", key: "cul_abc123" };
+const stored = { address: "http://192.168.1.20:5173", key: "cul_abc123" };
 const both = { ...stored, importKey: "cul_import9" };
-const connected = { app: "Culury", version: "0.16.0", name: "Culury Companion", access: "inbox_push", canPushToInbox: true, canImport: false };
-const importer = { app: "Culury", version: "0.16.0", name: "Culury Companion import", access: "recipe_push", canPushToInbox: false, canImport: true, aiCorrection: true };
+const connected = { app: "RecipeHub", version: "0.16.0", name: "RecipeHub Companion", access: "inbox_push", canPushToInbox: true, canImport: false };
+const importer = { app: "RecipeHub", version: "0.16.0", name: "RecipeHub Companion import", access: "recipe_push", canPushToInbox: false, canImport: true, aiCorrection: true };
 const $ = (sel) => document.querySelector(sel);
 const byText = (text) => [...document.querySelectorAll("button, a")].find((b) => b.textContent.trim() === text);
 
@@ -19,8 +19,8 @@ beforeEach(() => {
   closed = vi.spyOn(window, "close").mockImplementation(() => {});
 });
 
-// Culury, answering each key's check (and anything else given)
-const culury = (importCheck = importer, more = {}) =>
+// RecipeHub, answering each key's check (and anything else given)
+const recipehub = (importCheck = importer, more = {}) =>
   vi.fn(async (url, init) => {
     const path = url.replace(/^https?:\/\/[^/]+/, "");
     if (path === "/api/key-check") return answer(200, init.headers["x-api-key"] === "cul_import9" ? importCheck : connected);
@@ -30,88 +30,88 @@ const culury = (importCheck = importer, more = {}) =>
 
 describe("the popup", () => {
   it("connected: says so, and shows the page", async () => {
-    fakeChrome({ stored, fetch: culury() });
+    fakeChrome({ stored, fetch: recipehub() });
     await init();
-    await until(() => expect($("#status").textContent).toMatch(/Connected.*Culury Companion.*Inbox only/));
+    await until(() => expect($("#status").textContent).toMatch(/Connected.*RecipeHub Companion.*Inbox only/));
     expect($("#page-title").textContent).toBe("Pork Roast | Example");
     expect($("#page-site").textContent).toBe("example.com");
   });
 
   it("no quick notes any more", async () => {
-    fakeChrome({ stored, fetch: culury() });
+    fakeChrome({ stored, fetch: recipehub() });
     await init();
     expect($("#note")).toBeNull();
     expect(byText("Send note")).toBeUndefined();
   });
 
   it("Send to Inbox: the popup closes, and the page's banner says it was added", async () => {
-    const fetch = culury(importer, { "POST /api/inbox": () => answer(201, { id: 3 }) });
+    const fetch = recipehub(importer, { "POST /api/inbox": () => answer(201, { id: 3 }) });
     const { onPage } = fakeChrome({ stored, fetch, page: { recipe: '{"@type":"Recipe","name":"Pork Roast"}' } });
     await init();
     await until(() => expect(byText("Send to Inbox").disabled).toBe(false));
     expect($("#page-kind").textContent).toBe("Recipe found on this page");
     byText("Send to Inbox").click();
     expect(closed).toHaveBeenCalled();
-    await until(() => expect(onPage.banners.at(-1)).toEqual(["Sent to your Culury inbox", "ok", null]));
+    await until(() => expect(onPage.banners.at(-1)).toEqual(["Sent to your RecipeHub inbox", "ok", null]));
     expect(JSON.parse(fetch.mock.calls.find(([, i]) => i?.method === "POST")[1].body)).toMatchObject({ type: "RAW_RECIPE_DATA", url: "https://www.example.com/pork-roast" });
   });
 
-  it("Import to Culury: straight in (noted in the inbox's Imported list); the popup closes", async () => {
-    const fetch = culury(importer, { "POST /api/recipes/import": () => answer(200, { id: 12, status: "done", result: { recipeId: 31, title: "Pork Roast" } }) });
+  it("Import to RecipeHub: straight in (noted in the inbox's Imported list); the popup closes", async () => {
+    const fetch = recipehub(importer, { "POST /api/recipes/import": () => answer(200, { id: 12, status: "done", result: { recipeId: 31, title: "Pork Roast" } }) });
     const { onPage } = fakeChrome({ stored: both, fetch, page: { html: "<html>pork</html>" } });
     await init();
-    await until(() => expect(byText("Import to Culury").disabled).toBe(false));
-    byText("Import to Culury").click();
+    await until(() => expect(byText("Import to RecipeHub").disabled).toBe(false));
+    byText("Import to RecipeHub").click();
     expect(closed).toHaveBeenCalled();
-    await until(() => expect(onPage.banners.at(-1)).toEqual(["Imported “Pork Roast” into Culury", "ok", "http://192.168.86.222:5173/#/recipes/31"]));
+    await until(() => expect(onPage.banners.at(-1)).toEqual(["Imported “Pork Roast” into RecipeHub", "ok", "http://192.168.1.20:5173/#/recipes/31"]));
     expect(JSON.parse(fetch.mock.calls.find(([u]) => u.endsWith("/api/recipes/import"))[1].body)).toEqual({ url: "https://www.example.com/pork-roast", html: "<html>pork</html>", inbox: true, wait: 25 });
   });
 
   it("Run through AI correction: remembered, and the import asks for it", async () => {
-    const fetch = culury(importer, { "POST /api/recipes/import": () => answer(200, { id: 12, status: "done", result: { recipeId: 31, title: "Pork Roast", improving: 13 } }) });
+    const fetch = recipehub(importer, { "POST /api/recipes/import": () => answer(200, { id: 12, status: "done", result: { recipeId: 31, title: "Pork Roast", improving: 13 } }) });
     const { store } = fakeChrome({ stored: both, fetch });
     await init();
     await until(() => expect($("#improve").disabled).toBe(false));
     $("#improve").click();
     expect(store.improve).toBe(true);
-    byText("Import to Culury").click();
+    byText("Import to RecipeHub").click();
     await until(() => expect(fetch.mock.calls.some(([u]) => u.endsWith("/api/recipes/import"))).toBe(true));
     expect(JSON.parse(fetch.mock.calls.find(([u]) => u.endsWith("/api/recipes/import"))[1].body)).toMatchObject({ improve: true });
   });
 
   it("the choice is ticked next time", async () => {
-    fakeChrome({ stored: { ...both, improve: true }, fetch: culury() });
+    fakeChrome({ stored: { ...both, improve: true }, fetch: recipehub() });
     await init();
     await until(() => expect($("#improve").checked).toBe(true));
   });
 
-  it("AI not set up in Culury: AI correction can't be ticked, and says why", async () => {
-    fakeChrome({ stored: { ...both, improve: true }, fetch: culury({ ...importer, aiCorrection: false }) });
+  it("AI not set up in RecipeHub: AI correction can't be ticked, and says why", async () => {
+    fakeChrome({ stored: { ...both, improve: true }, fetch: recipehub({ ...importer, aiCorrection: false }) });
     await init();
-    await until(() => expect(byText("Import to Culury").disabled).toBe(false));
+    await until(() => expect(byText("Import to RecipeHub").disabled).toBe(false));
     expect($("#improve").disabled).toBe(true);
     expect($("#improve").checked).toBe(false);
-    expect($("#import-hint").textContent).toMatch(/AI correction needs AI in Culury/);
+    expect($("#import-hint").textContent).toMatch(/AI correction needs AI in RecipeHub/);
   });
 
   it("no import key: says where to add one", async () => {
-    fakeChrome({ stored, fetch: culury() });
+    fakeChrome({ stored, fetch: recipehub() });
     await init();
     await until(() => expect($("#import-hint").textContent).toMatch(/Add a Recipe push key in Settings/));
-    expect(byText("Import to Culury").disabled).toBe(true);
+    expect(byText("Import to RecipeHub").disabled).toBe(true);
   });
 
   it("an import key that can't import: says so", async () => {
-    fakeChrome({ stored: both, fetch: culury({ ...importer, access: "read", canImport: false }) });
+    fakeChrome({ stored: both, fetch: recipehub({ ...importer, access: "read", canImport: false }) });
     await init();
     await until(() => expect($("#import-hint").textContent).toMatch(/can't import.*Recipe push/));
-    expect(byText("Import to Culury").disabled).toBe(true);
+    expect(byText("Import to RecipeHub").disabled).toBe(true);
   });
 
   it("not set up yet: says so, can't send, and Settings opens the options", async () => {
     const { chrome } = fakeChrome({ fetch: vi.fn() });
     await init();
-    await until(() => expect($("#status").textContent).toMatch(/Add your Culury address and API key/));
+    await until(() => expect($("#status").textContent).toMatch(/Add your RecipeHub address and API key/));
     expect(byText("Send to Inbox").disabled).toBe(true);
     byText("Settings").click();
     expect(chrome.runtime.openOptionsPage).toHaveBeenCalled();
@@ -125,29 +125,29 @@ describe("the popup", () => {
   });
 
   it("a browser page (chrome://): nothing to send", async () => {
-    fakeChrome({ stored, fetch: culury(), tab: { id: 2, url: "chrome://newtab/", title: "New Tab" }, page: new Error("Cannot access a chrome:// URL") });
+    fakeChrome({ stored, fetch: recipehub(), tab: { id: 2, url: "chrome://newtab/", title: "New Tab" }, page: new Error("Cannot access a chrome:// URL") });
     await init();
     await until(() => expect($("#page-kind").textContent).toMatch(/isn't a web page/));
     expect(byText("Send to Inbox").disabled).toBe(true);
     expect($("#bubble").disabled).toBe(true);
   });
 
-  it("Open inbox opens Culury's inbox in a new tab", async () => {
-    const { opened } = fakeChrome({ stored, fetch: culury() });
+  it("Open inbox opens RecipeHub's inbox in a new tab", async () => {
+    const { opened } = fakeChrome({ stored, fetch: recipehub() });
     await init();
     byText("Open inbox").click();
-    await until(() => expect(opened).toEqual(["http://192.168.86.222:5173/#/inbox"]));
+    await until(() => expect(opened).toEqual(["http://192.168.1.20:5173/#/inbox"]));
   });
 
-  it("can't reach Culury: says so", async () => {
+  it("can't reach RecipeHub: says so", async () => {
     fakeChrome({ stored, fetch: vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))) });
     await init();
-    await until(() => expect($("#status").textContent).toMatch(/Can't reach Culury at http:\/\/192\.168\.86\.222:5173/));
+    await until(() => expect($("#status").textContent).toMatch(/Can't reach RecipeHub at http:\/\/192\.168\.1\.20:5173/));
   });
 
   describe("the floating button switch", () => {
     it("puts the bubble on this page, and takes it off", async () => {
-      const { chrome, onPage } = fakeChrome({ stored, fetch: culury() });
+      const { chrome, onPage } = fakeChrome({ stored, fetch: recipehub() });
       await init();
       await until(() => expect($("#bubble").disabled).toBe(false));
       expect($("#bubble").checked).toBe(false);
@@ -159,7 +159,7 @@ describe("the popup", () => {
     });
 
     it("on when the bubble is already on the page", async () => {
-      fakeChrome({ stored, fetch: culury(), bubble: true });
+      fakeChrome({ stored, fetch: recipehub(), bubble: true });
       await init();
       await until(() => expect($("#bubble").checked).toBe(true));
     });
@@ -167,7 +167,7 @@ describe("the popup", () => {
 
   describe("Always show on this site", () => {
     it("asks the browser for this site, adds it, and puts the button on now", async () => {
-      const { chrome, onPage, registered, store } = fakeChrome({ stored, fetch: culury() });
+      const { chrome, onPage, registered, store } = fakeChrome({ stored, fetch: recipehub() });
       await init();
       await until(() => expect($("#always").disabled).toBe(false));
       expect($("#always-site").textContent).toBe("example.com");
@@ -180,7 +180,7 @@ describe("the popup", () => {
     });
 
     it("on for a site already in the list; off takes it out", async () => {
-      const { store } = fakeChrome({ stored: { ...stored, alwaysSites: ["https://www.example.com"] }, fetch: culury() });
+      const { store } = fakeChrome({ stored: { ...stored, alwaysSites: ["https://www.example.com"] }, fetch: recipehub() });
       await init();
       await until(() => expect($("#always").checked).toBe(true));
       $("#always").click();
@@ -188,7 +188,7 @@ describe("the popup", () => {
     });
 
     it("the browser says no: stays off, and says why", async () => {
-      fakeChrome({ stored, fetch: culury(), allow: false });
+      fakeChrome({ stored, fetch: recipehub(), allow: false });
       await init();
       await until(() => expect($("#always").disabled).toBe(false));
       $("#always").click();
@@ -197,7 +197,7 @@ describe("the popup", () => {
     });
 
     it("not on browser pages", async () => {
-      fakeChrome({ stored, fetch: culury(), tab: { id: 2, url: "chrome://newtab/", title: "New Tab" }, page: new Error("Cannot access a chrome:// URL") });
+      fakeChrome({ stored, fetch: recipehub(), tab: { id: 2, url: "chrome://newtab/", title: "New Tab" }, page: new Error("Cannot access a chrome:// URL") });
       await init();
       await until(() => expect($("#page-kind").textContent).toMatch(/isn't a web page/));
       expect($("#always").disabled).toBe(true);

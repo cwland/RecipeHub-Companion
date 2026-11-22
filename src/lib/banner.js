@@ -1,10 +1,10 @@
-// A message at the top of the page you're on ("Sent to your Culury inbox", "Imported …"), after the
+// A message at the top of the page you're on ("Sent to your RecipeHub inbox", "Imported …"), after the
 // popup or the floating button did something. Runs in the page (chrome.scripting.executeScript
 // passes this function by itself, so it must not use anything from outside it). It fades out by
 // itself; "busy" stays until the next one replaces it.
 //   state: "ok", "problem" or "busy". link: a recipe to open.
 export function showBanner(text, state = "ok", link) {
-  const ID = "culury-companion-banner";
+  const ID = "recipehub-companion-banner";
   const old = document.getElementById(ID);
   if (old) {
     clearTimeout(old.__timer);
@@ -48,7 +48,7 @@ export function showBanner(text, state = "ok", link) {
   const msg = document.createElement("span");
   msg.setAttribute("role", "status");
   msg.dataset.state = state;
-  msg.textContent = text; // text from Culury: never read as HTML
+  msg.textContent = text; // text from RecipeHub: never read as HTML
   if (link) {
     const a = document.createElement("a");
     a.href = link;

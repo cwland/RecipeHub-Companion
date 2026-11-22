@@ -1,4 +1,4 @@
-// Culury's address and the API keys, kept in this browser only (chrome.storage.local: never synced
+// RecipeHub's address and the API keys, kept in this browser only (chrome.storage.local: never synced
 // to your other devices). key: the Inbox only key. importKey: a Recipe push key for Direct Import
 // (optional). improve: "Run through AI correction" was ticked last time.
 const DEFAULTS = { address: "", key: "", importKey: "", improve: false };

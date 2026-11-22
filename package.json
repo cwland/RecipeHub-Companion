@@ -1,12 +1,12 @@
 {
-  "name": "culury-companion",
-  "version": "0.5.0",
+  "name": "recipehub-companion",
+  "version": "1.0.0",
   "private": true,
-  "description": "Send the recipe page you’re on to Culury, or import it straight in",
+  "description": "Send the recipe page you’re on to RecipeHub, or import it straight in",
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "zip": "cd . && zip -r culury-companion.zip manifest.json src assets -x '*.test.js'"
+    "zip": "cd . && zip -r recipehub-companion.zip manifest.json src assets -x '*.test.js'"
   },
   "devDependencies": {
     "jsdom": "^25.0.1",

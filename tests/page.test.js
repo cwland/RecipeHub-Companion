@@ -39,7 +39,7 @@ describe("reading the page you're on", () => {
 });
 
 describe("the page itself, for a direct import", () => {
-  it("comes along, so Culury reads what you see (even on sites that block it)", () => {
+  it("comes along, so RecipeHub reads what you see (even on sites that block it)", () => {
     document.head.innerHTML = "<title>Pork</title>";
     document.body.innerHTML = "<h1>Pork Roast</h1>";
     expect(readPage().html).toMatch(/^<!DOCTYPE html><html><head><title>Pork<\/title><\/head><body><h1>Pork Roast<\/h1><\/body><\/html>$/);

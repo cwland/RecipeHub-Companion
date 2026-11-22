@@ -1,16 +1,16 @@
-import { checkConnection, importPage, linkItem, normalizeAddress, push } from "../lib/culury.js";
+import { checkConnection, importPage, linkItem, normalizeAddress, push } from "../lib/recipehub.js";
 import { readPage } from "../lib/page.js";
 import { showBanner } from "../lib/banner.js";
 import { loadSettings } from "../lib/settings.js";
 import { listSites, removeSite, siteOf } from "../lib/sites.js";
 
 // What the popup (and later the on-page bubble) asks the service worker to do. The worker does the
-// talking to Culury: it has the permission to reach Culury's address, a web page doesn't.
+// talking to RecipeHub: it has the permission to reach RecipeHub's address, a web page doesn't.
 //   { type: "check", settings? }  are the address and keys right? (settings: test these instead)
 //                                 the import key's answer comes back as .import
 //   { type: "push", item }        send to the inbox
 //   { type: "import", page, improve }  import the page straight in (the Recipe push key)
-//   { type: "open-inbox" }        open Culury's inbox in a new tab
+//   { type: "open-inbox" }        open RecipeHub's inbox in a new tab
 //   { type: "act", action, tab? } "push" or "import" for a page: the floating button's tab
 //                                 (sender.tab), or the one the popup names; a banner on the page says how it went
 //   { type: "bubble-state" }      what the floating button can do (keys set up; import with AI correction?;
@@ -33,7 +33,7 @@ export async function handle(msg, { chrome = globalThis.chrome, fetch = globalTh
         return { ok: true };
       } catch {
         chrome.runtime.openOptionsPage();
-        return { ok: false, problem: "Add your Culury address first" };
+        return { ok: false, problem: "Add your RecipeHub address first" };
       }
     }
     case "bubble-state": {
@@ -61,14 +61,14 @@ export async function handle(msg, { chrome = globalThis.chrome, fetch = globalTh
 }
 
 // Send to Inbox or Import, for a page: the worker reads it, does it, and says how it went in a
-// banner at the top of the page. Import goes straight into Culury (and leaves a note in the inbox's
-// Imported list), with AI correction when it's ticked and Culury can do it.
+// banner at the top of the page. Import goes straight into RecipeHub (and leaves a note in the inbox's
+// Imported list), with AI correction when it's ticked and RecipeHub can do it.
 async function act(chrome, fetch, settings, tab, action) {
   // (what goes into the page must be JSON: null, never undefined)
   const banner = (text, state, link) => chrome.scripting.executeScript({ target: { tabId: tab.id }, func: showBanner, args: [text, state, link ?? null] }).catch(() => {});
   let improve = false;
   if (action === "import" && settings.improve && settings.importKey) improve = !!(await checkConnection({ ...settings, key: settings.importKey }, fetch)).aiCorrection;
-  await banner(action === "push" ? "Sending to Culury…" : improve ? "Importing into Culury… then AI tidies it up" : "Importing into Culury…", "busy");
+  await banner(action === "push" ? "Sending to RecipeHub…" : improve ? "Importing into RecipeHub… then AI tidies it up" : "Importing into RecipeHub…", "busy");
   const page = await readTab(chrome, tab.id);
   const r = action === "push" ? await push(settings, linkItem(tab, page), fetch) : await importPage(settings, pageToImport(tab, page), improve, fetch, { inbox: true });
   await banner(r.ok ? r.message : r.problem, r.ok ? "ok" : "problem", r.recipeUrl);
@@ -86,7 +86,7 @@ async function readTab(chrome, tabId) {
   }
 }
 
-// What an import sends: the page as you see it, except Instagram (Culury reads the post itself)
+// What an import sends: the page as you see it, except Instagram (RecipeHub reads the post itself)
 export function pageToImport(tab, page) {
   const instagram = /(^|\.)instagram\.com$/i.test(new URL(tab.url).hostname);
   return { url: tab.url, ...(page.html && !instagram ? { html: page.html } : {}) };

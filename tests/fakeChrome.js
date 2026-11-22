@@ -7,7 +7,7 @@ export function fakeChrome({ tab = { id: 7, url: "https://www.example.com/pork-r
   const store = { ...stored };
   const onPage = { bubble, banners: [] }; // the floating bubble on the tab, and the banners shown at its top
   const opened = [];
-  const granted = new Set(allow ? ["http://192.168.86.222:5173/*"] : []); // sites the extension may read
+  const granted = new Set(allow ? ["http://192.168.1.20:5173/*"] : []); // sites the extension may read
   const registered = new Map(); // content scripts set to load on sites by themselves
   const chrome = {
     storage: {

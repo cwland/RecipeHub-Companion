@@ -6,12 +6,12 @@ import { until } from "./fakeChrome.js";
 // the page as a plain script). It asks the service worker for everything.
 const code = fs.readFileSync("src/content/content_script.js", "utf8");
 const inject = () => new Function(code)();
-const host = () => document.getElementById("culury-companion-bubble");
+const host = () => document.getElementById("recipehub-companion-bubble");
 const root = () => host().shadowRoot;
 const item = (name) => [...root().querySelectorAll("[role=menuitem]")].find((b) => b.textContent.includes(name));
 
 function worker(state = { ok: true, canPush: true, canImport: true, improve: false }, results = {}) {
-  const sendMessage = vi.fn(async (msg) => (msg.type === "bubble-state" ? state : (results[msg.action] ?? { ok: true, message: "Sent to your Culury inbox" })));
+  const sendMessage = vi.fn(async (msg) => (msg.type === "bubble-state" ? state : (results[msg.action] ?? { ok: true, message: "Sent to your RecipeHub inbox" })));
   globalThis.chrome = { runtime: { sendMessage } };
   return sendMessage;
 }
@@ -23,9 +23,9 @@ const click = (el) => {
 };
 
 beforeEach(() => {
-  document.querySelectorAll("#culury-companion-bubble").forEach((b) => b.remove()); // it sits outside <body>
+  document.querySelectorAll("#recipehub-companion-bubble").forEach((b) => b.remove()); // it sits outside <body>
   document.body.innerHTML = "<h1>Pork Roast</h1>";
-  delete window.__culuryCompanion;
+  delete window.__recipehubCompanion;
 });
 
 describe("the floating bubble", () => {
@@ -33,15 +33,15 @@ describe("the floating bubble", () => {
     worker();
     inject();
     inject();
-    expect(document.querySelectorAll("#culury-companion-bubble")).toHaveLength(1);
-    expect(root().querySelector("button[aria-label='Culury Companion']")).toBeTruthy();
-    expect(window.__culuryCompanion.present()).toBe(true);
+    expect(document.querySelectorAll("#recipehub-companion-bubble")).toHaveLength(1);
+    expect(root().querySelector("button[aria-label='RecipeHub Companion']")).toBeTruthy();
+    expect(window.__recipehubCompanion.present()).toBe(true);
   });
 
   it("its menu: Send to Inbox, Import, Hide", async () => {
     worker();
     inject();
-    click(root().querySelector("button[aria-label='Culury Companion']"));
+    click(root().querySelector("button[aria-label='RecipeHub Companion']"));
     await until(() => expect(root().querySelector("[role=menu]").hidden).toBe(false));
     await until(() => expect([...root().querySelectorAll("[role=menuitem]")].map((b) => b.textContent.trim())).toEqual(["📬 Send to Inbox", "⚡ Import", "Hide"]));
   });
@@ -49,19 +49,19 @@ describe("the floating bubble", () => {
   it("Import says when it'll run through AI correction (as ticked in the popup)", async () => {
     worker({ ok: true, canPush: true, canImport: true, improve: true });
     inject();
-    click(root().querySelector("button[aria-label='Culury Companion']"));
+    click(root().querySelector("button[aria-label='RecipeHub Companion']"));
     await until(() => expect(item("Import").textContent.trim()).toBe("⚡ Import with AI correction"));
   });
 
   it("Send to Inbox and Import ask the worker (the banner at the top of the page says how it went) and close the menu", async () => {
     const send = worker();
     inject();
-    click(root().querySelector("button[aria-label='Culury Companion']"));
+    click(root().querySelector("button[aria-label='RecipeHub Companion']"));
     await until(() => expect(item("Send to Inbox").disabled).toBe(false));
     item("Send to Inbox").click();
     expect(send).toHaveBeenCalledWith({ type: "act", action: "push" });
     expect(root().querySelector("[role=menu]").hidden).toBe(true);
-    click(root().querySelector("button[aria-label='Culury Companion']"));
+    click(root().querySelector("button[aria-label='RecipeHub Companion']"));
     await until(() => expect(item("Import").disabled).toBe(false));
     item("Import").click();
     expect(send).toHaveBeenCalledWith({ type: "act", action: "import" });
@@ -70,7 +70,7 @@ describe("the floating bubble", () => {
   it("no import key: only Send to Inbox", async () => {
     worker({ ok: true, canPush: true, canImport: false, improve: false });
     inject();
-    click(root().querySelector("button[aria-label='Culury Companion']"));
+    click(root().querySelector("button[aria-label='RecipeHub Companion']"));
     await until(() => expect(item("Send to Inbox").disabled).toBe(false));
     expect(item("Import")).toBeUndefined();
   });
@@ -78,7 +78,7 @@ describe("the floating bubble", () => {
   it("on a site where it always shows: Stop showing on this site", async () => {
     const send = worker({ ok: true, canPush: true, canImport: false, improve: false, always: true });
     inject();
-    click(root().querySelector("button[aria-label='Culury Companion']"));
+    click(root().querySelector("button[aria-label='RecipeHub Companion']"));
     await until(() => expect(item("Stop showing on this site")).toBeTruthy());
     item("Stop showing on this site").click();
     await until(() => expect(send).toHaveBeenCalledWith({ type: "always-off" }));
@@ -88,32 +88,32 @@ describe("the floating bubble", () => {
   it("not on such a site: no Stop showing", async () => {
     worker();
     inject();
-    click(root().querySelector("button[aria-label='Culury Companion']"));
+    click(root().querySelector("button[aria-label='RecipeHub Companion']"));
     await until(() => expect(item("Hide")).toBeTruthy());
     expect(item("Stop showing")).toBeUndefined();
   });
 
   it("not set up: the menu says so", async () => {
-    worker({ ok: false, problem: "Add your Culury address and API key in the extension's settings." });
+    worker({ ok: false, problem: "Add your RecipeHub address and API key in the extension's settings." });
     inject();
-    click(root().querySelector("button[aria-label='Culury Companion']"));
-    await until(() => expect(root().querySelector("[role=menu]").textContent).toMatch(/Add your Culury address/));
+    click(root().querySelector("button[aria-label='RecipeHub Companion']"));
+    await until(() => expect(root().querySelector("[role=menu]").textContent).toMatch(/Add your RecipeHub address/));
   });
 
   it("Hide takes it off the page", async () => {
     worker();
     inject();
-    click(root().querySelector("button[aria-label='Culury Companion']"));
+    click(root().querySelector("button[aria-label='RecipeHub Companion']"));
     await until(() => expect(item("Hide")).toBeTruthy());
     item("Hide").click();
     expect(host()).toBeNull();
-    expect(window.__culuryCompanion.present()).toBe(false);
+    expect(window.__recipehubCompanion.present()).toBe(false);
   });
 
   it("can be dragged to another spot (a drag doesn't open the menu)", async () => {
     worker();
     inject();
-    const button = root().querySelector("button[aria-label='Culury Companion']");
+    const button = root().querySelector("button[aria-label='RecipeHub Companion']");
     const before = host().style.top;
     pointer(button, "pointerdown", 1000, 300);
     pointer(window, "pointermove", 990, 200);
